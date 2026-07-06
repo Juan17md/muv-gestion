@@ -1,277 +1,208 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { esquemaTienda, type DatosTienda } from "@/lib/schemas";
-import {
-  obtenerTiendas,
-  crearTienda,
-  actualizarTienda,
-  eliminarTienda,
-} from "@/lib/servicios/tiendas";
-import type { Tienda } from "@/types";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useState, useEffect } from "react"
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import { tiendasService } from "@/lib/firebaseServices"
+import { formatearFecha, cn } from "@/lib/utils"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
-import {
-  Plus,
-  Store,
-  MoreVertical,
-  Pencil,
-  Trash2,
-  Loader2,
-  Package,
-} from "lucide-react";
+} from "@/components/ui/dialog"
+import { toast } from "sonner"
+import { Plus, Store, Pencil, Trash2, Loader2 } from "lucide-react"
+import type { Tienda } from "@/lib/types"
 
 export default function TiendasPage() {
-  const [tiendas, setTiendas] = useState<Tienda[]>([]);
-  const [cargando, setCargando] = useState(true);
-  const [dialogoAbierto, setDialogoAbierto] = useState(false);
-  const [tiendaEditar, setTiendaEditar] = useState<Tienda | null>(null);
-  const [eliminando, setEliminando] = useState<string | null>(null);
+  const [tiendas, setTiendas] = useState<Tienda[]>([])
+  const [loading, setLoading] = useState(true)
+  const [dialogoAbierto, setDialogoAbierto] = useState(false)
+  const [editandoId, setEditandoId] = useState<string | null>(null)
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<DatosTienda>({
-    resolver: zodResolver(esquemaTienda),
-  });
-
-  const cargarTiendas = async () => {
-    try {
-      const data = await obtenerTiendas();
-      setTiendas(data);
-    } catch (error) {
-      toast.error("Error al cargar tiendas");
-    } finally {
-      setCargando(false);
-    }
-  };
+  const [formNombre, setFormNombre] = useState("")
+  const [formNotas, setFormNotas] = useState("")
+  const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
-    cargarTiendas();
-  }, []);
+    const q = query(collection(db, "tiendas"), orderBy("nombre"))
+    const unsub = onSnapshot(q, (snap) => {
+      setTiendas(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Tienda)))
+      setLoading(false)
+    })
+    return unsub
+  }, [])
 
   const abrirDialogo = (tienda?: Tienda) => {
     if (tienda) {
-      setTiendaEditar(tienda);
-      reset({ nombre: tienda.nombre, notas: tienda.notas || "" });
+      setEditandoId(tienda.id)
+      setFormNombre(tienda.nombre)
+      setFormNotas(tienda.notas || "")
     } else {
-      setTiendaEditar(null);
-      reset({ nombre: "", notas: "" });
+      setEditandoId(null)
+      setFormNombre("")
+      setFormNotas("")
     }
-    setDialogoAbierto(true);
-  };
+    setDialogoAbierto(true)
+  }
 
-  const onSubmit = async (datos: DatosTienda) => {
+  const guardar = async () => {
+    if (!formNombre) {
+      toast.error("El nombre es requerido")
+      return
+    }
+    setGuardando(true)
     try {
-      if (tiendaEditar) {
-        await actualizarTienda(tiendaEditar.id, datos);
-        toast.success("Tienda actualizada");
+      if (editandoId) {
+        await tiendasService.actualizar(editandoId, {
+          nombre: formNombre,
+          notas: formNotas || undefined,
+        })
+        toast.success("Tienda actualizada")
       } else {
-        await crearTienda(datos);
-        toast.success("Tienda creada");
+        await tiendasService.crear({
+          nombre: formNombre,
+          notas: formNotas || undefined,
+        })
+        toast.success("Tienda registrada")
       }
-      setDialogoAbierto(false);
-      reset();
-      cargarTiendas();
-    } catch (error) {
-      toast.error("Error al guardar la tienda");
-    }
-  };
-
-  const manejarEliminar = async (id: string) => {
-    setEliminando(id);
-    try {
-      await eliminarTienda(id);
-      toast.success("Tienda eliminada");
-      cargarTiendas();
-    } catch (error) {
-      toast.error("Error al eliminar la tienda");
+      setDialogoAbierto(false)
+    } catch {
+      toast.error("Error al guardar")
     } finally {
-      setEliminando(null);
+      setGuardando(false)
     }
-  };
+  }
 
-  if (cargando) {
-    return (
-      <div className="p-4 lg:p-6 space-y-4">
-        <Skeleton className="h-10 w-48" />
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
-          ))}
-        </div>
-      </div>
-    );
+  const eliminar = async (id: string) => {
+    if (!confirm("¿Eliminar esta tienda?")) return
+    await tiendasService.eliminar(id)
+    toast.success("Tienda eliminada")
   }
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Header */}
+    <div className="page-container space-y-8 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tiendas</h1>
-          <p className="text-sm text-muted-foreground">
-            {tiendas.length} tienda{tiendas.length !== 1 ? "s" : ""} registrada
-            {tiendas.length !== 1 ? "s" : ""}
-          </p>
+          <p className="typography-label text-primary">Catálogo</p>
+          <h1 className="typography-title-premium">Tiendas</h1>
         </div>
         <Dialog open={dialogoAbierto} onOpenChange={setDialogoAbierto}>
           <DialogTrigger asChild>
-            <Button size="sm" onClick={() => abrirDialogo()} id="btn-nueva-tienda">
-              <Plus className="size-4 mr-1.5" />
-              Nueva tienda
+            <Button className="gap-2" onClick={() => abrirDialogo()}>
+              <Plus className="h-4 w-4" />
+              Nueva
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>
-                {tiendaEditar ? "Editar tienda" : "Nueva tienda"}
-              </DialogTitle>
-              <DialogDescription>
-                {tiendaEditar
-                  ? "Modifica los datos de la tienda"
-                  : "Registra una nueva tienda online"}
-              </DialogDescription>
+              <DialogTitle>{editandoId ? "Editar Tienda" : "Registrar Tienda"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="nombre-tienda">Nombre</Label>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Nombre</Label>
                 <Input
-                  id="nombre-tienda"
-                  placeholder="Ej: Shein, Temu, AliExpress..."
-                  {...register("nombre")}
+                  value={formNombre}
+                  onChange={(e) => setFormNombre(e.target.value)}
+                  placeholder="Nombre de la tienda"
                 />
-                {errors.nombre && (
-                  <p className="text-xs text-destructive">
-                    {errors.nombre.message}
-                  </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Notas (opcional)</Label>
+                <Input
+                  value={formNotas}
+                  onChange={(e) => setFormNotas(e.target.value)}
+                  placeholder="Tipo de productos, plataforma..."
+                />
+              </div>
+              <Button onClick={guardar} className="w-full" disabled={guardando}>
+                {guardando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : editandoId ? (
+                  "Actualizar tienda"
+                ) : (
+                  "Guardar tienda"
                 )}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="notas-tienda">Notas (opcional)</Label>
-                <Input
-                  id="notas-tienda"
-                  placeholder="Observaciones sobre la tienda..."
-                  {...register("notas")}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDialogoAbierto(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={isSubmitting} id="btn-guardar-tienda">
-                  {isSubmitting && (
-                    <Loader2 className="size-4 animate-spin mr-1.5" />
-                  )}
-                  {tiendaEditar ? "Guardar cambios" : "Crear tienda"}
-                </Button>
-              </div>
-            </form>
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Lista */}
-      {tiendas.length === 0 ? (
-        <Card className="py-12">
-          <CardContent className="flex flex-col items-center text-center">
-            <Store className="size-12 text-muted-foreground/30 mb-3" />
-            <p className="text-sm text-muted-foreground mb-3">
-              No hay tiendas registradas
-            </p>
-            <Button size="sm" onClick={() => abrirDialogo()}>
-              <Plus className="size-4 mr-1.5" />
-              Crear primera tienda
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {tiendas.map((tienda) => (
-            <Card
-              key={tienda.id}
-              className="group hover:shadow-md transition-shadow"
-            >
-              <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex items-center justify-center size-9 rounded-lg bg-primary/10">
-                    <Store className="size-4 text-primary" />
+      <div className="grid gap-3">
+        {loading
+          ? Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} className="card-glow">
+                <CardContent className="p-5">
+                  <Skeleton className="h-5 w-40 mb-2" />
+                  <Skeleton className="h-4 w-24" />
+                </CardContent>
+              </Card>
+            ))
+          : tiendas.map((tienda, idx) => (
+              <Card
+                key={tienda.id}
+                className={cn(
+                  "card-glow animate-fade-up",
+                )}
+                style={{ animationDelay: `${idx * 50}ms` }}
+              >
+                <CardContent className="p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 rounded-xl bg-primary/10">
+                      <Store className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-semibold">{tienda.nombre}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatearFecha(tienda.creadoEn)}
+                        {tienda.notas && ` · ${tienda.notas}`}
+                      </p>
+                    </div>
                   </div>
-                  <CardTitle className="text-base">{tienda.nombre}</CardTitle>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                  <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
-                      size="icon"
-                      className="size-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      size="icon-sm"
+                      onClick={() => abrirDialogo(tienda)}
                     >
-                      <MoreVertical className="size-4" />
+                      <Pencil className="h-4 w-4" />
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => abrirDialogo(tienda)}>
-                      <Pencil className="size-4 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => eliminar(tienda.id)}
                       className="text-destructive"
-                      onClick={() => manejarEliminar(tienda.id)}
-                      disabled={eliminando === tienda.id}
                     >
-                      <Trash2 className="size-4 mr-2" />
-                      Eliminar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </CardHeader>
-              <CardContent>
-                {tienda.notas ? (
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {tienda.notas}
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground/50 italic">
-                    Sin notas
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+        {!loading && tiendas.length === 0 && (
+          <div className="text-center py-16">
+            <Store className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <p className="text-lg font-medium text-muted-foreground">No hay tiendas</p>
+            <Button
+              variant="outline"
+              className="mt-4 gap-2"
+              onClick={() => abrirDialogo()}
+            >
+              <Plus className="h-4 w-4" />
+              Registrar primera tienda
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
-  );
+  )
 }

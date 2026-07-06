@@ -1,789 +1,485 @@
-"use client";
+"use client"
 
-import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { esquemaProducto, type DatosProducto } from "@/lib/schemas";
+import { useState, useEffect, use } from "react"
+import { useRouter } from "next/navigation"
+import { doc, onSnapshot } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import { pedidosService, productosService } from "@/lib/firebaseServices"
 import {
-  obtenerPedido,
-  obtenerProductosPedido,
-  agregarProducto,
-  actualizarProducto,
-  eliminarProducto,
-  avanzarEstadoPedido,
-  eliminarPedido,
-  recalcularTotalesPedido,
-} from "@/lib/servicios/pedidos";
-import { obtenerClientes } from "@/lib/servicios/clientes";
-import type {
-  Pedido,
-  ProductoPedido,
-  Cliente,
-  EstadoPedido,
-  EstadoPago,
-} from "@/types";
-import {
-  ETIQUETAS_ESTADO,
-  ETIQUETAS_PAGO,
+  formatearMoneda,
+  formatearFecha,
   ESTADOS_PEDIDO,
-  TRANSICIONES_PERMITIDAS,
-  ESTADO_A_UBICACION,
-} from "@/types";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+  ESTADOS_PAGO,
+  SIGUIENTE_ESTADO,
+  cn,
+} from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
+} from "@/components/ui/dialog"
+import { Separator } from "@/components/ui/separator"
+import { toast } from "sonner"
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
-  DollarSign,
-  Loader2,
-  MessageCircle,
-  MoreVertical,
-  Package,
-  Pencil,
   Plus,
   Trash2,
-  TrendingUp,
-  Truck,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  Loader2,
+  Check,
+  X,
+  MessageCircle,
+  Package,
+  Wallet,
+} from "lucide-react"
+import Link from "next/link"
+import type { Pedido, ProductoPedido } from "@/lib/types"
 
-// ─── Colores de Estado ───
-const COLORES_ESTADO: Record<EstadoPedido, string> = {
-  borrador: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  comprado: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-  transito_china_usa:
-    "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300",
-  casillero_usa:
-    "bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300",
-  transito_usa_ven:
-    "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300",
-  entregado_ven:
-    "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
-  entregado_cliente:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300",
-  cerrado:
-    "bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300",
-};
-
-const COLORES_PAGO: Record<EstadoPago, string> = {
-  sin_pagar:
-    "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
-  parcial:
-    "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
-  pagado:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
-};
-
-// ─── Timeline Visual ───
-function TimelinePedido({ estadoActual }: { estadoActual: EstadoPedido }) {
-  const indiceActual = ESTADOS_PEDIDO.indexOf(estadoActual);
-
-  return (
-    <div className="w-full overflow-x-auto">
-      <div className="flex items-center min-w-[600px] px-2 py-4">
-        {ESTADOS_PEDIDO.map((estado, i) => {
-          const completado = i < indiceActual;
-          const activo = i === indiceActual;
-
-          return (
-            <div key={estado} className="flex items-center flex-1 last:flex-0">
-              <div className="flex flex-col items-center">
-                <div
-                  className={cn(
-                    "size-8 rounded-full flex items-center justify-center text-xs font-bold transition-all",
-                    completado &&
-                      "bg-primary text-primary-foreground",
-                    activo &&
-                      "bg-primary text-primary-foreground ring-4 ring-primary/20",
-                    !completado &&
-                      !activo &&
-                      "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {completado ? (
-                    <Check className="size-4" />
-                  ) : (
-                    i + 1
-                  )}
-                </div>
-                <span
-                  className={cn(
-                    "text-[9px] mt-1.5 text-center max-w-16 leading-tight",
-                    activo
-                      ? "text-primary font-semibold"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {ETIQUETAS_ESTADO[estado].replace("En Tránsito ", "").replace("En Casillero ", "Casillero ")}
-                </span>
-              </div>
-              {i < ESTADOS_PEDIDO.length - 1 && (
-                <div
-                  className={cn(
-                    "h-0.5 flex-1 mx-1",
-                    i < indiceActual ? "bg-primary" : "bg-muted"
-                  )}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+const ESTADOS_TIMELINE = [
+  "borrador",
+  "comprado",
+  "transito_china_usa",
+  "casillero_usa",
+  "transito_usa_ven",
+  "entregado_ven",
+  "entregado_cliente",
+  "cerrado",
+]
 
 export default function DetallePedidoPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ id: string }>
 }) {
-  const { id } = use(params);
-  const router = useRouter();
-  const [pedido, setPedido] = useState<Pedido | null>(null);
-  const [productos, setProductos] = useState<ProductoPedido[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [cargando, setCargando] = useState(true);
-  const [dialogoProducto, setDialogoProducto] = useState(false);
-  const [productoEditar, setProductoEditar] = useState<ProductoPedido | null>(
-    null
-  );
-  const [avanzandoEstado, setAvanzandoEstado] = useState(false);
+  const { id } = use(params)
+  const router = useRouter()
+  const [pedido, setPedido] = useState<Pedido | null>(null)
+  const [productos, setProductos] = useState<ProductoPedido[]>([])
+  const [loading, setLoading] = useState(true)
+  const [dialogoAbierto, setDialogoAbierto] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors, isSubmitting },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } = useForm<DatosProducto>({
-    resolver: zodResolver(esquemaProducto) as any,
-  });
-
-  const cargarDatos = async () => {
-    try {
-      const [pedidoData, productosData, clientesData] = await Promise.all([
-        obtenerPedido(id),
-        obtenerProductosPedido(id),
-        obtenerClientes(),
-      ]);
-      setPedido(pedidoData);
-      setProductos(productosData);
-      setClientes(clientesData);
-    } catch (error) {
-      toast.error("Error al cargar el pedido");
-    } finally {
-      setCargando(false);
-    }
-  };
+  const [nvoNombre, setNvoNombre] = useState("")
+  const [nvoCantidad, setNvoCantidad] = useState(1)
+  const [nvoPrecio, setNvoPrecio] = useState(0)
+  const [nvoMargen, setNvoMargen] = useState(0)
+  const [nvoCliente, setNvoCliente] = useState("")
+  const [nvoEnvio, setNvoEnvio] = useState(0)
+  const [creando, setCreando] = useState(false)
 
   useEffect(() => {
-    cargarDatos();
-  }, [id]);
-
-  const abrirDialogoProducto = (producto?: ProductoPedido) => {
-    if (producto) {
-      setProductoEditar(producto);
-      reset({
-        nombre: producto.nombre,
-        cantidad: producto.cantidad,
-        precioUnitario: producto.precioUnitario,
-        margen: producto.margen,
-        envioCliente: producto.envioCliente || 0,
-        clienteNombre: producto.clienteNombre,
-        clienteRef: producto.clienteRef || "",
-      });
-    } else {
-      setProductoEditar(null);
-      reset({
-        nombre: "",
-        cantidad: 1,
-        precioUnitario: 0,
-        margen: 0,
-        envioCliente: 0,
-        clienteNombre: "",
-        clienteRef: "",
-      });
-    }
-    setDialogoProducto(true);
-  };
-
-  const onSubmitProducto = async (datos: DatosProducto) => {
-    try {
-      const productoData = {
-        ...datos,
-        estadoPago: "sin_pagar" as EstadoPago,
-        montoPagado: 0,
-      };
-
-      if (productoEditar) {
-        await actualizarProducto(id, productoEditar.id, datos);
-        toast.success("Producto actualizado");
-      } else {
-        await agregarProducto(id, productoData);
-        toast.success("Producto agregado al pedido");
+    const unsubPedido = onSnapshot(doc(db, "pedidos", id), (snap) => {
+      if (!snap.exists()) {
+        router.push("/pedidos")
+        return
       }
+      setPedido({ id: snap.id, ...snap.data() } as Pedido)
+      setLoading(false)
+    })
 
-      await recalcularTotalesPedido(id);
-      setDialogoProducto(false);
-      reset();
-      cargarDatos();
-    } catch (error) {
-      toast.error("Error al guardar el producto");
+    const unsubProds = productosService.listar(id).then(setProductos)
+
+    return () => {
+      unsubPedido()
     }
-  };
+  }, [id, router])
 
-  const manejarEliminarProducto = async (productoId: string) => {
-    try {
-      await eliminarProducto(id, productoId);
-      await recalcularTotalesPedido(id);
-      toast.success("Producto eliminado");
-      cargarDatos();
-    } catch (error) {
-      toast.error("Error al eliminar el producto");
+  const avanzarEstado = async () => {
+    if (!pedido) return
+    const sig = SIGUIENTE_ESTADO[pedido.estado]
+    if (!sig) return
+    await pedidosService.avanzarEstado(pedido.id, sig)
+    toast.success(`Pedido avanzó a ${ESTADOS_PEDIDO.find((e) => e.valor === sig)?.etiqueta}`)
+  }
+
+  const retrocederEstado = async () => {
+    if (!pedido) return
+    const idx = ESTADOS_TIMELINE.indexOf(pedido.estado)
+    if (idx <= 0) return
+    const anterior = ESTADOS_TIMELINE[idx - 1]
+    await pedidosService.actualizar(pedido.id, { estado: anterior })
+    toast.success("Estado retrocedido")
+  }
+
+  const agregarProducto = async () => {
+    if (!nvoNombre || !nvoCliente) {
+      toast.error("Nombre del producto y cliente son requeridos")
+      return
     }
-  };
-
-  const manejarCambioPago = async (
-    productoId: string,
-    nuevoEstado: EstadoPago,
-    montoTotal: number
-  ) => {
+    setCreando(true)
     try {
-      const montoPagado =
-        nuevoEstado === "pagado"
-          ? montoTotal
-          : nuevoEstado === "parcial"
-          ? montoTotal * 0.5
-          : 0;
-
-      await actualizarProducto(id, productoId, {
-        estadoPago: nuevoEstado,
-        montoPagado,
-      });
-      toast.success(`Pago marcado como ${ETIQUETAS_PAGO[nuevoEstado]}`);
-      cargarDatos();
-    } catch (error) {
-      toast.error("Error al actualizar el pago");
-    }
-  };
-
-  const manejarAvanzarEstado = async () => {
-    if (!pedido) return;
-    const siguiente = TRANSICIONES_PERMITIDAS[pedido.estado];
-    if (!siguiente) return;
-
-    setAvanzandoEstado(true);
-    try {
-      await avanzarEstadoPedido(
-        id,
-        siguiente,
-        ESTADO_A_UBICACION[siguiente]
-      );
-      toast.success(`Estado cambiado a: ${ETIQUETAS_ESTADO[siguiente]}`);
-      cargarDatos();
-    } catch (error) {
-      toast.error("Error al cambiar el estado");
+      await productosService.agregar(id, {
+        nombre: nvoNombre,
+        cantidad: nvoCantidad,
+        precioUnitario: nvoPrecio,
+        margen: nvoMargen,
+        envioCliente: nvoEnvio || undefined,
+        clienteNombre: nvoCliente,
+        estadoPago: "sin_pagar",
+      })
+      setNvoNombre("")
+      setNvoCantidad(1)
+      setNvoPrecio(0)
+      setNvoMargen(0)
+      setNvoCliente("")
+      setNvoEnvio(0)
+      setDialogoAbierto(false)
+      toast.success("Producto agregado")
+    } catch {
+      toast.error("Error al agregar producto")
     } finally {
-      setAvanzandoEstado(false);
+      setCreando(false)
     }
-  };
-
-  const manejarEliminarPedido = async () => {
-    try {
-      await eliminarPedido(id);
-      toast.success("Pedido eliminado");
-      router.push("/pedidos");
-    } catch (error) {
-      toast.error("Error al eliminar el pedido");
-    }
-  };
-
-  if (cargando) {
-    return (
-      <div className="p-4 lg:p-6 space-y-4">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-20 rounded-xl" />
-        <Skeleton className="h-64 rounded-xl" />
-      </div>
-    );
   }
 
-  if (!pedido) {
-    return (
-      <div className="p-4 lg:p-6 text-center py-20">
-        <Package className="size-12 text-muted-foreground/30 mx-auto mb-3" />
-        <p className="text-muted-foreground">Pedido no encontrado</p>
-        <Button asChild variant="outline" className="mt-3">
-          <Link href="/pedidos">Volver a pedidos</Link>
-        </Button>
-      </div>
-    );
+  const eliminarProducto = async (productoId: string) => {
+    await productosService.eliminar(id, productoId)
+    toast.success("Producto eliminado")
   }
 
-  const esBorrador = pedido.estado === "borrador";
-  const siguienteEstado = TRANSICIONES_PERMITIDAS[pedido.estado];
+  const cambiarPago = async (productoId: string, estadoPago: string) => {
+    await productosService.actualizar(id, productoId, {
+      estadoPago: estadoPago as ProductoPedido["estadoPago"],
+    })
+  }
 
-  // Cálculos financieros
-  const costoTotal = productos.reduce(
-    (s, p) => s + p.precioUnitario * p.cantidad,
-    0
-  );
-  const gananciaTotal = productos.reduce(
-    (s, p) => s + p.margen * p.cantidad,
-    0
-  );
-  const totalCobrar = productos.reduce(
-    (s, p) =>
-      s +
-      (p.precioUnitario + p.margen) * p.cantidad +
-      (p.envioCliente || 0),
-    0
-  );
-  const totalPagado = productos.reduce(
-    (s, p) => s + (p.montoPagado || 0),
-    0
-  );
-  const totalPendiente = totalCobrar - totalPagado;
+  if (loading || !pedido) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  const estadoActual = ESTADOS_PEDIDO.find((e) => e.valor === pedido.estado)
+  const idxActual = ESTADOS_TIMELINE.indexOf(pedido.estado)
+  const esBorrador = pedido.estado === "borrador"
+  const costoTotal = productos.reduce((s, p) => s + p.precioUnitario * p.cantidad, 0)
+  const gananciaTotal = productos.reduce((s, p) => s + (p.margen || 0) * p.cantidad, 0)
 
   return (
-    <div className="p-4 lg:p-6 space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/pedidos">
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight">
-                {pedido.tiendaNombre}
-              </h1>
-              <Badge
-                variant="secondary"
-                className={COLORES_ESTADO[pedido.estado]}
-              >
-                {ETIQUETAS_ESTADO[pedido.estado]}
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Creado el{" "}
-              {pedido.fechaCreacion?.toDate?.()
-                ? new Intl.DateTimeFormat("es", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  }).format(pedido.fechaCreacion.toDate())
-                : "—"}
-            </p>
-          </div>
-        </div>
-
-        {esBorrador && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreVertical className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={manejarEliminarPedido}
-              >
-                <Trash2 className="size-4 mr-2" />
-                Eliminar pedido
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+    <div className="page-container max-w-4xl space-y-8 animate-fade-in">
+      <div>
+        <Link
+          href="/pedidos"
+          className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          Volver a pedidos
+        </Link>
+        <p className="typography-label text-primary">
+          {pedido.tiendaNombre}
+        </p>
+        <h1 className="typography-title-premium">Detalle del Pedido</h1>
       </div>
 
-      {/* Timeline */}
-      <Card>
-        <CardContent className="py-2">
-          <TimelinePedido estadoActual={pedido.estado} />
+      <Card className="card-glow">
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">
+                Creado {formatearFecha(pedido.fechaCreacion)}
+              </p>
+              <div className="flex items-center gap-2">
+                <Badge className={cn(estadoActual?.color, "border-0 text-xs")}>
+                  {estadoActual?.etiqueta}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              {idxActual > 0 && (
+                <Button variant="outline" size="sm" onClick={retrocederEstado}>
+                  <ArrowLeft className="h-3 w-3 mr-1" />
+                  Retroceder
+                </Button>
+              )}
+              {idxActual < ESTADOS_TIMELINE.length - 1 && (
+                <Button size="sm" onClick={avanzarEstado}>
+                  Avanzar
+                  <ArrowRight className="h-3 w-3 ml-1" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            {ESTADOS_TIMELINE.map((est, i) => {
+              const info = ESTADOS_PEDIDO.find((e) => e.valor === est)
+              const completado = i <= idxActual
+              return (
+                <div key={est} className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all",
+                      completado
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {completado ? (
+                      <Check className="h-3 w-3" />
+                    ) : (
+                      <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+                    )}
+                    {info?.etiqueta}
+                  </div>
+                  {i < ESTADOS_TIMELINE.length - 1 && (
+                    <div
+                      className={cn(
+                        "h-px w-4",
+                        completado ? "bg-primary" : "bg-border"
+                      )}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Botón Avanzar Estado */}
-      {siguienteEstado && (
-        <Button
-          onClick={manejarAvanzarEstado}
-          disabled={avanzandoEstado}
-          className="w-full h-11"
-          id="btn-avanzar-estado"
-        >
-          {avanzandoEstado ? (
-            <Loader2 className="size-4 animate-spin mr-1.5" />
-          ) : (
-            <ArrowRight className="size-4 mr-1.5" />
-          )}
-          Avanzar a: {ETIQUETAS_ESTADO[siguienteEstado]}
-        </Button>
-      )}
-
-      {/* Resumen Financiero */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-              Costo total
-            </p>
-            <p className="text-lg font-bold">${costoTotal.toFixed(2)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-              Ganancia
-            </p>
-            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-              ${gananciaTotal.toFixed(2)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-              Cobrado
-            </p>
-            <p className="text-lg font-bold">${totalPagado.toFixed(2)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-              Pendiente
-            </p>
-            <p
-              className={cn(
-                "text-lg font-bold",
-                totalPendiente > 0
-                  ? "text-amber-600 dark:text-amber-400"
-                  : "text-emerald-600 dark:text-emerald-400"
-              )}
-            >
-              ${totalPendiente.toFixed(2)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Productos */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-lg">Productos</CardTitle>
-            <CardDescription>
-              {productos.length} producto{productos.length !== 1 ? "s" : ""} en
-              el pedido
-            </CardDescription>
-          </div>
-          {esBorrador && (
-            <Dialog
-              open={dialogoProducto}
-              onOpenChange={setDialogoProducto}
-            >
-              <DialogTrigger asChild>
-                <Button
-                  size="sm"
-                  onClick={() => abrirDialogoProducto()}
-                  id="btn-agregar-producto"
-                >
-                  <Plus className="size-4 mr-1.5" />
-                  Agregar
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-h-[90dvh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>
-                    {productoEditar ? "Editar producto" : "Agregar producto"}
-                  </DialogTitle>
-                  <DialogDescription>
-                    Completa los datos del producto
-                  </DialogDescription>
-                </DialogHeader>
-                <form
-                  onSubmit={handleSubmit(onSubmitProducto)}
-                  className="space-y-4"
-                >
-                  <div className="space-y-1.5">
-                    <Label htmlFor="nombre-prod">Producto</Label>
-                    <Input
-                      id="nombre-prod"
-                      placeholder="Nombre del producto"
-                      {...register("nombre")}
-                    />
-                    {errors.nombre && (
-                      <p className="text-xs text-destructive">
-                        {errors.nombre.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="cantidad-prod">Cantidad</Label>
-                      <Input
-                        id="cantidad-prod"
-                        type="number"
-                        min={1}
-                        {...register("cantidad")}
-                      />
-                      {errors.cantidad && (
-                        <p className="text-xs text-destructive">
-                          {errors.cantidad.message}
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="precio-prod">Precio unitario ($)</Label>
-                      <Input
-                        id="precio-prod"
-                        type="number"
-                        step="0.01"
-                        min={0}
-                        {...register("precioUnitario")}
-                      />
-                      {errors.precioUnitario && (
-                        <p className="text-xs text-destructive">
-                          {errors.precioUnitario.message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="margen-prod">Margen ($)</Label>
-                      <Input
-                        id="margen-prod"
-                        type="number"
-                        step="0.01"
-                        min={0}
-                        {...register("margen")}
-                      />
-                      {errors.margen && (
-                        <p className="text-xs text-destructive">
-                          {errors.margen.message}
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="envio-prod">Envío cliente ($)</Label>
-                      <Input
-                        id="envio-prod"
-                        type="number"
-                        step="0.01"
-                        min={0}
-                        {...register("envioCliente")}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="cliente-prod">Cliente</Label>
+      <Card className="card-glow">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-bold">Productos</h2>
+            </div>
+            {esBorrador && (
+              <Dialog open={dialogoAbierto} onOpenChange={setDialogoAbierto}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-1">
+                    <Plus className="h-4 w-4" />
+                    Agregar
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Agregar Producto</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
                     <div className="space-y-2">
+                      <Label>Nombre del producto</Label>
                       <Input
-                        id="cliente-prod"
-                        placeholder="Nombre del cliente"
-                        {...register("clienteNombre")}
-                        list="clientes-lista"
+                        value={nvoNombre}
+                        onChange={(e) => setNvoNombre(e.target.value)}
+                        placeholder="Ej: Funda para celular"
                       />
-                      <datalist id="clientes-lista">
-                        {clientes.map((c) => (
-                          <option key={c.id} value={c.nombre} />
-                        ))}
-                      </datalist>
                     </div>
-                    {errors.clienteNombre && (
-                      <p className="text-xs text-destructive">
-                        {errors.clienteNombre.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex justify-end gap-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Cantidad</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={nvoCantidad}
+                          onChange={(e) => setNvoCantidad(Number(e.target.value))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Precio unitario (USD)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={nvoPrecio}
+                          onChange={(e) => setNvoPrecio(Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Margen (USD)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={nvoMargen}
+                          onChange={(e) => setNvoMargen(Number(e.target.value))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Envío cliente (USD)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={nvoEnvio}
+                          onChange={(e) => setNvoEnvio(Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Cliente</Label>
+                      <Input
+                        value={nvoCliente}
+                        onChange={(e) => setNvoCliente(e.target.value)}
+                        placeholder="Nombre del cliente"
+                      />
+                    </div>
                     <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setDialogoProducto(false)}
+                      onClick={agregarProducto}
+                      className="w-full"
+                      disabled={creando}
                     >
-                      Cancelar
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting} id="btn-guardar-producto">
-                      {isSubmitting && (
-                        <Loader2 className="size-4 animate-spin mr-1.5" />
+                      {creando ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Agregar al pedido"
                       )}
-                      {productoEditar ? "Guardar" : "Agregar"}
                     </Button>
                   </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          )}
-        </CardHeader>
-        <CardContent>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+
           {productos.length === 0 ? (
             <div className="text-center py-8">
-              <Package className="size-10 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">
-                {esBorrador
-                  ? "Agrega productos al pedido"
-                  : "Sin productos"}
-              </p>
+              <Package className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+              <p className="text-sm text-muted-foreground">No hay productos</p>
+              {esBorrador && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => setDialogoAbierto(true)}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Agregar primer producto
+                </Button>
+              )}
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-3">
               {productos.map((prod) => {
-                const total =
-                  (prod.precioUnitario + prod.margen) * prod.cantidad +
-                  (prod.envioCliente || 0);
-                const clienteRegistrado = clientes.find(
-                  (c) => c.nombre === prod.clienteNombre
-                );
+                const pagoInfo = ESTADOS_PAGO.find((e) => e.valor === prod.estadoPago)
+                const totalProd = prod.precioUnitario * prod.cantidad
+                const precioCliente = totalProd + (prod.margen || 0) + (prod.envioCliente || 0)
 
                 return (
                   <div
                     key={prod.id}
-                    className="rounded-lg border border-border p-3 space-y-2"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border bg-background/50"
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {prod.nombre}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {prod.cantidad}x · ${prod.precioUnitario} + $
-                          {prod.margen} margen
-                          {prod.envioCliente
-                            ? ` + $${prod.envioCliente} envío`
-                            : ""}
-                        </p>
-                      </div>
+                    <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">
-                          ${total.toFixed(2)}
+                        <p className="font-medium">{prod.nombre}</p>
+                        <span className="text-xs text-muted-foreground">
+                          x{prod.cantidad}
                         </span>
-                        {esBorrador && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-7">
-                                <MoreVertical className="size-3.5" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => abrirDialogoProducto(prod)}
-                              >
-                                <Pencil className="size-3.5 mr-2" />
-                                Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() =>
-                                  manejarEliminarProducto(prod.id)
-                                }
-                              >
-                                <Trash2 className="size-3.5 mr-2" />
-                                Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {prod.clienteNombre}
+                      </p>
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <span>Costo: {formatearMoneda(totalProd)}</span>
+                        <span>Margen: {formatearMoneda(prod.margen || 0)}</span>
+                        <span>Cliente: {formatearMoneda(precioCliente)}</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {prod.clienteNombre}
-                        </span>
-                        {clienteRegistrado && (
+                    <div className="flex items-center gap-2">
+                      {prod.clienteRef || prod.clienteNombre ? (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          asChild
+                        >
                           <a
-                            href={`https://wa.me/${clienteRegistrado.whatsapp.replace(/[^\d+]/g, "")}`}
+                            href={`https://wa.me/`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
                           >
-                            <MessageCircle className="size-3.5" />
+                            <MessageCircle className="h-4 w-4" />
                           </a>
-                        )}
+                        </Button>
+                      ) : null}
+
+                      <div className="flex gap-1">
+                        {ESTADOS_PAGO.map((ep) => (
+                          <button
+                            key={ep.valor}
+                            onClick={() => prod.id && cambiarPago(prod.id, ep.valor)}
+                            className={cn(
+                              "px-2 py-1 rounded text-[10px] font-medium transition-all",
+                              prod.estadoPago === ep.valor
+                                ? ep.color
+                                : "bg-muted text-muted-foreground/50"
+                            )}
+                          >
+                            {ep.etiqueta}
+                          </button>
+                        ))}
                       </div>
 
-                      {/* Gestión de Pagos */}
-                      <Select
-                        value={prod.estadoPago}
-                        onValueChange={(val) =>
-                          manejarCambioPago(
-                            prod.id,
-                            val as EstadoPago,
-                            total
-                          )
-                        }
-                      >
-                        <SelectTrigger
-                          className={cn(
-                            "h-7 w-auto text-xs border-0",
-                            COLORES_PAGO[prod.estadoPago]
-                          )}
+                      {esBorrador && prod.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => eliminarProducto(prod.id!)}
+                          className="text-destructive"
                         >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="sin_pagar">Sin Pagar</SelectItem>
-                          <SelectItem value="parcial">Parcial (50%)</SelectItem>
-                          <SelectItem value="pagado">Pagado</SelectItem>
-                        </SelectContent>
-                      </Select>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
-                );
+                )
               })}
             </div>
           )}
         </CardContent>
       </Card>
+
+      <Card className="card-glow">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Wallet className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-bold">Resumen Financiero</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Costo Total</p>
+              <p className="text-lg font-bold">{formatearMoneda(costoTotal)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Ganancia Total</p>
+              <p className="text-lg font-bold text-emerald-600">
+                {formatearMoneda(gananciaTotal)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Pendiente de Pago</p>
+              <p className="text-lg font-bold text-yellow-600">
+                {formatearMoneda(
+                  productos
+                    .filter((p) => p.estadoPago !== "pagado")
+                    .reduce(
+                      (s, p) =>
+                        s +
+                        p.precioUnitario * p.cantidad +
+                        (p.margen || 0) -
+                        (p.montoPagado || 0),
+                      0
+                    )
+                )}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Productos</p>
+              <p className="text-lg font-bold">{productos.length}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
