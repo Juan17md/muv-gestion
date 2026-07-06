@@ -2,17 +2,28 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Package, Users, Store, Settings, LogOut } from "lucide-react"
+import { LayoutDashboard, Package, Users, Store, Archive, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ToggleTema } from "./ToggleTema"
 import { auth } from "@/lib/firebase"
 import { useRouter } from "next/navigation"
 
-const enlaces = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/pedidos", label: "Pedidos", icon: Package },
-  { href: "/clientes", label: "Clientes", icon: Users },
-  { href: "/tiendas", label: "Tiendas", icon: Store },
+const secciones = [
+  {
+    titulo: "Gestión",
+    enlaces: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/pedidos", label: "Pedidos", icon: Package },
+      { href: "/clientes", label: "Clientes", icon: Users },
+      { href: "/tiendas", label: "Tiendas", icon: Store },
+    ],
+  },
+  {
+    titulo: "Tienda",
+    enlaces: [
+      { href: "/inventario", label: "Inventario", icon: Archive },
+    ],
+  },
 ]
 
 export function Sidebar() {
@@ -33,25 +44,30 @@ export function Sidebar() {
         <span className="font-bold text-lg tracking-tight">Müv</span>
       </div>
 
-      <nav className="flex-1 px-3 space-y-1">
-        {enlaces.map(({ href, label, icon: Icon }) => {
-          const activo = pathname === href || pathname.startsWith(href + "/")
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                activo
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </Link>
-          )
-        })}
+      <nav className="flex-1 px-3 space-y-6">
+        {secciones.map(({ titulo, enlaces }) => (
+          <div key={titulo} className="space-y-1">
+            <p className="typography-label text-muted-foreground/60 px-3">{titulo}</p>
+            {enlaces.map(({ href, label, icon: Icon }) => {
+              const activo = pathname === href || pathname.startsWith(href + "/")
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                    activo
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Link>
+              )
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="px-3 py-4 border-t space-y-1">

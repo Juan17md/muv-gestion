@@ -57,3 +57,20 @@ export type EstadoPedido =
   | "cerrado"
 
 export type EstadoPago = "sin_pagar" | "parcial" | "pagado"
+
+export interface ArticuloTienda {
+  id: string
+  nombre: string
+  cantidad: number
+  precioVenta: number
+  costo: number
+  categoria?: string
+  estado: "en_stock" | "vendido" | "apartado"
+  clienteNombre?: string
+  fechaVenta?: Timestamp
+  notas?: string
+  creadoEn: Timestamp
+  actualizadoEn: Timestamp
+}
+
+export type EstadoArticulo = "en_stock" | "vendido" | "apartado"

@@ -13,7 +13,7 @@ import {
   type Timestamp,
 } from "firebase/firestore"
 import { db } from "./firebase"
-import type { Cliente, Tienda, Pedido, ProductoPedido } from "./types"
+import type { Cliente, Tienda, Pedido, ProductoPedido, ArticuloTienda } from "./types"
 
 function ts() {
   return serverTimestamp() as Timestamp
@@ -140,6 +140,35 @@ export const productosService = {
 
   async eliminar(pedidoId: string, productoId: string) {
     return deleteDoc(doc(this.ref(pedidoId), productoId))
+  },
+}
+
+export const inventarioService = {
+  async listar(): Promise<ArticuloTienda[]> {
+    const q = query(collection(db, "inventario"), orderBy("creadoEn", "desc"))
+    const snap = await getDocs(q)
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as ArticuloTienda))
+  },
+
+  async obtener(id: string): Promise<ArticuloTienda | null> {
+    const snap = await getDoc(doc(db, "inventario", id))
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as ArticuloTienda) : null
+  },
+
+  async crear(data: Omit<ArticuloTienda, "id" | "creadoEn" | "actualizadoEn">) {
+    return addDoc(collection(db, "inventario"), {
+      ...data,
+      creadoEn: ts(),
+      actualizadoEn: ts(),
+    })
+  },
+
+  async actualizar(id: string, data: Partial<ArticuloTienda>) {
+    return updateDoc(doc(db, "inventario", id), { ...data, actualizadoEn: ts() })
+  },
+
+  async eliminar(id: string) {
+    return deleteDoc(doc(db, "inventario", id))
   },
 }
 

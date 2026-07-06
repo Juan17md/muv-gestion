@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Package, Users, Store, LogOut } from "lucide-react"
+import { LayoutDashboard, Package, Users, Store, Archive, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { auth } from "@/lib/firebase"
 import { useRouter } from "next/navigation"
@@ -12,6 +12,7 @@ const enlaces = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/pedidos", label: "Pedidos", icon: Package },
   { href: "/clientes", label: "Clientes", icon: Users },
+  { href: "/inventario", label: "Inventario", icon: Archive },
   { href: "/tiendas", label: "Tiendas", icon: Store },
 ]
 

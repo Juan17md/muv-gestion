@@ -46,6 +46,12 @@ export const ESTADOS_PAGO = [
   { valor: "pagado", etiqueta: "Pagado", color: "bg-emerald-100 text-emerald-700" },
 ] as const
 
+export const ESTADOS_ARTICULO = [
+  { valor: "en_stock", etiqueta: "En Stock", color: "bg-emerald-100 text-emerald-700" },
+  { valor: "vendido", etiqueta: "Vendido", color: "bg-blue-100 text-blue-700" },
+  { valor: "apartado", etiqueta: "Apartado", color: "bg-yellow-100 text-yellow-700" },
+] as const
+
 export const SIGUIENTE_ESTADO: Record<string, string> = {
   borrador: "comprado",
   comprado: "transito_china_usa",
