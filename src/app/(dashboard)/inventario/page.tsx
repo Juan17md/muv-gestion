@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { inventarioService } from "@/lib/firebaseServices"
@@ -32,11 +33,7 @@ import {
   Search,
   Pencil,
   Trash2,
-  Package,
   Loader2,
-  TrendingUp,
-  DollarSign,
-  BarChart3,
 } from "lucide-react"
 import type { ArticuloTienda } from "@/lib/types"
 
@@ -149,23 +146,11 @@ export default function InventarioPage() {
     return true
   })
 
-  const totalInvertido = articulos.reduce((s, a) => s + a.costo * a.cantidad, 0)
-  const totalVenta = articulos.reduce((s, a) => s + a.precioVenta * a.cantidad, 0)
-  const totalStock = articulos.reduce((s, a) => s + a.cantidad, 0)
-  const totalVendidos = articulos.filter((a) => a.estado === "vendido").length
-
-  const metricas = [
-    { icon: Package, label: "En Stock", valor: articulos.filter((a) => a.estado === "en_stock").length.toString(), color: "text-emerald-600" },
-    { icon: TrendingUp, label: "Vendidos", valor: totalVendidos.toString(), color: "text-blue-600" },
-    { icon: DollarSign, label: "Invertido", valor: formatearMoneda(totalInvertido), color: "text-yellow-600" },
-    { icon: BarChart3, label: "Valor Total", valor: formatearMoneda(totalVenta), color: "text-primary" },
-  ]
-
   return (
     <div className="page-container space-y-8 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <p className="typography-label text-primary">Mi tienda</p>
+          <Link href="/tienda" className="typography-label text-primary hover:underline">Mi tienda</Link>
           <h1 className="typography-title-premium">Inventario</h1>
         </div>
         <Dialog open={dialogoAbierto} onOpenChange={setDialogoAbierto}>
@@ -231,24 +216,6 @@ export default function InventarioPage() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {metricas.map(({ icon: Icon, label, valor, color }) => (
-          <Card key={label} className="card-glow">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground font-medium">{label}</p>
-                  <p className={`text-2xl font-bold ${color}`}>{valor}</p>
-                </div>
-                <div className="p-2.5 rounded-xl bg-primary/10">
-                  <Icon className="h-5 w-5 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">

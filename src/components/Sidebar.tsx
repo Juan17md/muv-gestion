@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Package, Users, Store, Archive, LogOut } from "lucide-react"
+import { LayoutDashboard, Package, Users, Store, Archive, LayoutPanelTop, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ToggleTema } from "./ToggleTema"
 import { auth } from "@/lib/firebase"
@@ -21,6 +21,7 @@ const secciones = [
   {
     titulo: "Tienda",
     enlaces: [
+      { href: "/tienda", label: "Panel", icon: LayoutPanelTop },
       { href: "/inventario", label: "Inventario", icon: Archive },
     ],
   },
