@@ -30,7 +30,6 @@ import {
   ArrowRight,
   ShoppingCart,
   Store,
-  Users,
   BarChart3,
   Receipt,
   MessageCircle,
@@ -204,14 +203,14 @@ export default function DashboardGlobalPage() {
             <ArrowRight className="h-5 w-5 text-primary ml-auto shrink-0" />
           </div>
         </Link>
-        <Link href="/clientes" className="card-glow rounded-xl p-6 hover:translate-y-[-2px] transition-all">
+        <Link href="/tienda" className="card-glow rounded-xl p-6 hover:translate-y-[-2px] transition-all">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-xl bg-primary/10">
-              <Users className="h-6 w-6 text-primary" />
+              <Receipt className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="font-semibold text-lg">Clientes</p>
-              <p className="text-sm text-muted-foreground">Ver y gestionar clientes</p>
+              <p className="font-semibold text-lg">Registrar Venta</p>
+              <p className="text-sm text-muted-foreground">Registrar una venta desde el inventario</p>
             </div>
             <ArrowRight className="h-5 w-5 text-primary ml-auto shrink-0" />
           </div>
