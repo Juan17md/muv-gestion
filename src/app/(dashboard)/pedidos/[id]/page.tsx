@@ -2,14 +2,15 @@
 
 import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
-import { doc, onSnapshot } from "firebase/firestore"
+import { doc, onSnapshot, addDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { pedidosService, productosService } from "@/lib/firebaseServices"
+import { pedidosService, productosService, ventasService, inventarioService } from "@/lib/firebaseServices"
 import {
   formatearMoneda,
   formatearFecha,
   ESTADOS_PEDIDO,
   ESTADOS_PAGO,
+  ESTATUS_ENTREGA,
   SIGUIENTE_ESTADO,
   cn,
 } from "@/lib/utils"
@@ -26,6 +27,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import {
@@ -39,9 +50,11 @@ import {
   MessageCircle,
   Package,
   Wallet,
+  User,
+  PackagePlus,
 } from "lucide-react"
 import Link from "next/link"
-import type { Pedido, ProductoPedido } from "@/lib/types"
+import type { Pedido, ProductoPedido, ArticuloTienda } from "@/lib/types"
 
 const ESTADOS_TIMELINE = [
   "borrador",
@@ -72,7 +85,9 @@ export default function DetallePedidoPage({
   const [nvoCliente, setNvoCliente] = useState("")
   const [nvoEnvio, setNvoEnvio] = useState("")
   const [nvoPrecioVenta, setNvoPrecioVenta] = useState("")
+  const [nvoTipo, setNvoTipo] = useState<"cliente" | "inventario">("cliente")
   const [creando, setCreando] = useState(false)
+  const [retiroDialogoAbierto, setRetiroDialogoAbierto] = useState(false)
 
   useEffect(() => {
     const unsubPedido = onSnapshot(doc(db, "pedidos", id), (snap) => {
@@ -95,8 +110,59 @@ export default function DetallePedidoPage({
     if (!pedido) return
     const sig = SIGUIENTE_ESTADO[pedido.estado]
     if (!sig) return
+
+    if (sig === "entregado_cliente") {
+      setRetiroDialogoAbierto(true)
+      return
+    }
+
     await pedidosService.avanzarEstado(pedido.id, sig)
     toast.success(`Pedido avanzó a ${ESTADOS_PEDIDO.find((e) => e.valor === sig)?.etiqueta}`)
+  }
+
+  const confirmarRetiro = async () => {
+    if (!pedido) return
+    setRetiroDialogoAbierto(false)
+
+    const pendientes = productos.filter((p) => !p.retirado)
+    if (pendientes.length === 0) {
+      await pedidosService.avanzarEstado(pedido.id, "entregado_cliente")
+      toast.success("Pedido retirado")
+      return
+    }
+
+    try {
+      for (const prod of pendientes) {
+        if (prod.tipoProducto === "inventario" || (!prod.tipoProducto && !prod.clienteNombre)) {
+          await inventarioService.crear({
+            nombre: prod.nombre,
+            cantidad: prod.cantidad,
+            precioVenta: prod.precioVenta || prod.precioUnitario,
+            costo: prod.precioUnitario,
+            estado: "en_stock",
+          })
+        } else {
+          await addDoc(collection(db, "ventas"), {
+            articuloNombre: prod.nombre,
+            cantidad: prod.cantidad,
+            precioVenta: prod.precioVenta || prod.precioUnitario * prod.cantidad,
+            clienteNombre: prod.clienteNombre || "",
+            estatusEntrega: "por_entregar",
+            creadoEn: serverTimestamp(),
+            actualizadoEn: serverTimestamp(),
+          })
+        }
+
+        if (prod.id) {
+          await productosService.actualizar(pedido.id, prod.id, { retirado: true })
+        }
+      }
+
+      await pedidosService.avanzarEstado(pedido.id, "entregado_cliente")
+      toast.success(`${pendientes.length} producto${pendientes.length > 1 ? "s" : ""} retirado${pendientes.length > 1 ? "s" : ""}`)
+    } catch {
+      toast.error("Error al procesar retiro")
+    }
   }
 
   const retrocederEstado = async () => {
@@ -109,8 +175,12 @@ export default function DetallePedidoPage({
   }
 
   const agregarProducto = async () => {
-    if (!nvoNombre || !nvoCliente) {
-      toast.error("Nombre del producto y cliente son requeridos")
+    if (!nvoNombre) {
+      toast.error("El nombre del producto es requerido")
+      return
+    }
+    if (nvoTipo === "cliente" && !nvoCliente) {
+      toast.error("El nombre del cliente es requerido")
       return
     }
 
@@ -121,7 +191,7 @@ export default function DetallePedidoPage({
     const precioPorArticulo = cantidad > 0 ? (cantidad * precioUnitario + envio - margen) / cantidad : 0
     const precioVenta = nvoPrecioVenta ? Number(nvoPrecioVenta) : undefined
 
-    if (precioVenta !== undefined && precioVenta < precioPorArticulo) {
+    if (nvoTipo === "cliente" && precioVenta !== undefined && precioVenta < precioPorArticulo) {
       toast.error("El precio de venta no puede ser menor al precio por artículo")
       setCreando(false)
       return
@@ -129,16 +199,23 @@ export default function DetallePedidoPage({
 
     setCreando(true)
     try {
-      await productosService.agregar(id, {
+      const data: Record<string, unknown> = {
         nombre: nvoNombre,
         cantidad,
         precioUnitario,
-        precioVenta,
-        margen: margen || undefined,
-        envioCliente: envio || undefined,
-        clienteNombre: nvoCliente,
+        tipoProducto: nvoTipo,
         estadoPago: "sin_pagar",
-      })
+      }
+      if (precioVenta !== undefined) data.precioVenta = precioVenta
+      if (envio) data.envioCliente = envio
+      if (nvoTipo === "cliente") {
+        data.clienteNombre = nvoCliente
+        if (margen) data.margen = margen
+      } else {
+        data.clienteNombre = ""
+      }
+
+      await productosService.agregar(id, data as Parameters<typeof productosService.agregar>[1])
       setNvoNombre("")
       setNvoCantidad("")
       setNvoPrecio("")
@@ -293,6 +370,32 @@ export default function DetallePedidoPage({
                           placeholder="Ej: Funda para celular"
                         />
                       </div>
+
+                      <div className="flex rounded-lg border p-1 bg-muted">
+                        <button
+                          type="button"
+                          onClick={() => setNvoTipo("cliente")}
+                          className={cn(
+                            "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all",
+                            nvoTipo === "cliente" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <User className="h-3.5 w-3.5" />
+                          Cliente
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNvoTipo("inventario")}
+                          className={cn(
+                            "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all",
+                            nvoTipo === "inventario" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <PackagePlus className="h-3.5 w-3.5" />
+                          Mi stock
+                        </button>
+                      </div>
+
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-3">
                           <Label>Cantidad</Label>
@@ -316,18 +419,34 @@ export default function DetallePedidoPage({
                           />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-3">
-                          <Label>Descuento (USD)</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            placeholder="0.00"
-                            value={nvoMargen}
-                            onChange={(e) => setNvoMargen(e.target.value)}
-                          />
+
+                      {nvoTipo === "cliente" && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-3">
+                            <Label>Descuento (USD)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              placeholder="0.00"
+                              value={nvoMargen}
+                              onChange={(e) => setNvoMargen(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <Label>Precio de envío (USD)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              placeholder="0.00"
+                              value={nvoEnvio}
+                              onChange={(e) => setNvoEnvio(e.target.value)}
+                            />
+                          </div>
                         </div>
+                      )}
+                      {nvoTipo === "inventario" && (
                         <div className="space-y-3">
                           <Label>Precio de envío (USD)</Label>
                           <Input
@@ -339,72 +458,58 @@ export default function DetallePedidoPage({
                             onChange={(e) => setNvoEnvio(e.target.value)}
                           />
                         </div>
-                      </div>
+                      )}
+
                       <div className="rounded-lg border bg-muted/50 px-4 py-3 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Subtotal</span>
-                          <span>{(Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0)} USD</span>
+                          <span>{formatearMoneda((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0))}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Envío</span>
-                          <span>+{Number(nvoEnvio) || 0} USD</span>
+                          <span>+{formatearMoneda(Number(nvoEnvio) || 0)}</span>
                         </div>
-                        {Number(nvoMargen) > 0 && (
+                        {nvoTipo === "cliente" && Number(nvoMargen) > 0 && (
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Descuento</span>
-                            <span className="text-green-600">-{Number(nvoMargen)} USD</span>
+                            <span className="text-green-600">-{formatearMoneda(Number(nvoMargen))}</span>
                           </div>
                         )}
                         <div className="flex justify-between font-medium border-t pt-1 mt-1">
                           <span>Total</span>
                           <span>
-                            {(Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
+                            {formatearMoneda(
+                              (Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
                               (Number(nvoEnvio) || 0) -
-                              (Number(nvoMargen) || 0)}{" "}
-                            USD
+                              (nvoTipo === "cliente" ? (Number(nvoMargen) || 0) : 0)
+                            )}
                           </span>
                         </div>
-                        {Number(nvoCantidad) > 0 && (
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>Precio por artículo</span>
-                            <span>
-                              {(
-                                ((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
-                                  (Number(nvoEnvio) || 0) -
-                                  (Number(nvoMargen) || 0)) /
-                                (Number(nvoCantidad) || 1)
-                              ).toFixed(2)}{" "}
-                              USD
-                            </span>
-                          </div>
-                        )}
                       </div>
+
                       {Number(nvoCantidad) > 0 && (
                         <div className="space-y-3">
                           <Label>Precio de venta</Label>
                           <Input
                             type="number"
                             step="0.01"
-                            min={(
-                              ((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
-                                (Number(nvoEnvio) || 0) -
-                                (Number(nvoMargen) || 0)) /
-                              (Number(nvoCantidad) || 1)
-                            ).toFixed(2)}
                             placeholder="Precio de venta"
                             value={nvoPrecioVenta}
                             onChange={(e) => setNvoPrecioVenta(e.target.value)}
                           />
                         </div>
                       )}
-                      <div className="space-y-3">
-                        <Label>Cliente</Label>
-                        <Input
-                          value={nvoCliente}
-                          onChange={(e) => setNvoCliente(e.target.value)}
-                          placeholder="Nombre del cliente"
-                        />
-                      </div>
+
+                      {nvoTipo === "cliente" && (
+                        <div className="space-y-3">
+                          <Label>Cliente</Label>
+                          <Input
+                            value={nvoCliente}
+                            onChange={(e) => setNvoCliente(e.target.value)}
+                            placeholder="Nombre del cliente"
+                          />
+                        </div>
+                      )}
                     <Button
                       onClick={agregarProducto}
                       className="w-full"
@@ -444,11 +549,15 @@ export default function DetallePedidoPage({
                 const pagoInfo = ESTADOS_PAGO.find((e) => e.valor === prod.estadoPago)
                 const totalProd = prod.precioUnitario * prod.cantidad
                 const precioCliente = totalProd + (prod.margen || 0) + (prod.envioCliente || 0)
+                const esInventario = prod.tipoProducto === "inventario" || (!prod.tipoProducto && !prod.clienteNombre)
 
                 return (
                   <div
                     key={prod.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border bg-background/50"
+                    className={cn(
+                      "flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border bg-background/50 transition-all",
+                      prod.retirado && "opacity-50"
+                    )}
                   >
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
@@ -456,62 +565,63 @@ export default function DetallePedidoPage({
                         <span className="text-xs text-muted-foreground">
                           x{prod.cantidad}
                         </span>
+                        {prod.retirado && (
+                          <Badge variant="outline" className="text-[10px] h-5">Retirado</Badge>
+                        )}
+                        {esInventario && !prod.retirado && (
+                          <Badge variant="outline" className="text-[10px] h-5 text-blue-600 border-blue-200 bg-blue-50">Stock</Badge>
+                        )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {prod.clienteNombre}
-                      </p>
+                      {prod.clienteNombre && !esInventario && (
+                        <p className="text-xs text-muted-foreground">{prod.clienteNombre}</p>
+                      )}
                       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                         <span>Costo: {formatearMoneda(totalProd)}</span>
-                        <span>Descuento: {formatearMoneda(prod.margen || 0)}</span>
-                        <span>Cliente: {formatearMoneda(precioCliente)}</span>
+                        {!esInventario && <span>Descuento: {formatearMoneda(prod.margen || 0)}</span>}
+                        {!esInventario && <span>Cliente: {formatearMoneda(precioCliente)}</span>}
+                        {prod.precioVenta && <span>Venta: {formatearMoneda(prod.precioVenta * prod.cantidad)}</span>}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      {prod.clienteRef || prod.clienteNombre ? (
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          asChild
-                        >
-                          <a
-                            href={`https://wa.me/`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <MessageCircle className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      ) : null}
+                    {!prod.retirado && (
+                      <div className="flex items-center gap-2">
+                        {prod.clienteRef || prod.clienteNombre ? (
+                          <Button variant="ghost" size="icon-sm" asChild>
+                            <a href={`https://wa.me/`} target="_blank" rel="noopener noreferrer">
+                              <MessageCircle className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        ) : null}
 
-                      <div className="flex gap-1">
-                        {ESTADOS_PAGO.map((ep) => (
-                          <button
-                            key={ep.valor}
-                            onClick={() => prod.id && cambiarPago(prod.id, ep.valor)}
-                            className={cn(
-                              "px-2 py-1 rounded text-[10px] font-medium transition-all",
-                              prod.estadoPago === ep.valor
-                                ? ep.color
-                                : "bg-muted text-muted-foreground/50"
-                            )}
+                        <div className="flex gap-1">
+                          {ESTADOS_PAGO.map((ep) => (
+                            <button
+                              key={ep.valor}
+                              onClick={() => prod.id && cambiarPago(prod.id, ep.valor)}
+                              className={cn(
+                                "px-2 py-1 rounded text-[10px] font-medium transition-all",
+                                prod.estadoPago === ep.valor
+                                  ? ep.color
+                                  : "bg-muted text-muted-foreground/50"
+                              )}
+                            >
+                              {ep.etiqueta}
+                            </button>
+                          ))}
+                        </div>
+
+                        {esBorrador && prod.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => eliminarProducto(prod.id!)}
+                            className="text-destructive"
                           >
-                            {ep.etiqueta}
-                          </button>
-                        ))}
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
-
-                      {esBorrador && prod.id && (
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => eliminarProducto(prod.id!)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+                    )}
                   </div>
                 )
               })}
@@ -561,6 +671,39 @@ export default function DetallePedidoPage({
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={retiroDialogoAbierto} onOpenChange={setRetiroDialogoAbierto}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar retiro</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(() => {
+                const porCliente = productos.filter((p) => !p.retirado && (p.tipoProducto === "cliente" || (!p.tipoProducto && p.clienteNombre)))
+                const porStock = productos.filter((p) => !p.retirado && (p.tipoProducto === "inventario" || (!p.tipoProducto && !p.clienteNombre)))
+                return (
+                  <div className="space-y-2">
+                    {porCliente.length > 0 && (
+                      <p>• {porCliente.length} producto{porCliente.length > 1 ? "s" : ""} → <strong>Ventas</strong> (por entregar)</p>
+                    )}
+                    {porStock.length > 0 && (
+                      <p>• {porStock.length} producto{porStock.length > 1 ? "s" : ""} → <strong>Inventario</strong></p>
+                    )}
+                    {porCliente.length === 0 && porStock.length === 0 && (
+                      <p>No hay productos pendientes por retirar.</p>
+                    )}
+                  </div>
+                )
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRetiroDialogoAbierto(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmarRetiro}>
+              Confirmar retiro
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

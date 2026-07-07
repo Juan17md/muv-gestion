@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { collection, query, orderBy, onSnapshot, getDocs, doc, updateDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { ventasService } from "@/lib/firebaseServices"
-import { formatearMoneda, formatearFecha, METODOS_PAGO, ESTATUS_PAGO_VENTA, cn } from "@/lib/utils"
+import { formatearMoneda, formatearFecha, METODOS_PAGO, ESTATUS_PAGO_VENTA, ESTATUS_ENTREGA, cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -78,6 +78,14 @@ export default function VentasPage() {
     })
   }
 
+  async function toggleEntrega(venta: Venta) {
+    const nuevo = venta.estatusEntrega === "entregado" ? "por_entregar" : "entregado"
+    await updateDoc(doc(db, "ventas", venta.id), {
+      estatusEntrega: nuevo,
+      actualizadoEn: serverTimestamp(),
+    })
+  }
+
   return (
     <div className="page-container space-y-8 animate-fade-in">
       <div>
@@ -119,21 +127,22 @@ export default function VentasPage() {
               <TableHead>Monto</TableHead>
               <TableHead>Método de pago</TableHead>
               <TableHead>Fecha de pago</TableHead>
-              <TableHead>Estatus</TableHead>
+              <TableHead>Pago</TableHead>
+              <TableHead>Entrega</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading
               ? Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 7 }).map((__, j) => (
+                    {Array.from({ length: 8 }).map((__, j) => (
                       <TableCell key={j}><Skeleton className="h-5 w-20" /></TableCell>
                     ))}
                   </TableRow>
                 ))
               : filtrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-48 text-center">
+                    <TableCell colSpan={8} className="h-48 text-center">
                       <Receipt className="h-8 w-8 mx-auto text-muted-foreground/50 mb-3" />
                       <p className="text-muted-foreground">
                         {busqueda || filtroEstatus !== "todos" ? "Sin resultados" : "No hay ventas registradas"}
@@ -144,6 +153,7 @@ export default function VentasPage() {
               : filtrados.map((venta) => {
                   const metodoInfo = METODOS_PAGO.find((m) => m.valor === venta.metodoPago)
                   const estatusInfo = ESTATUS_PAGO_VENTA.find((e) => e.valor === venta.estatusPago)
+                  const entregaInfo = ESTATUS_ENTREGA.find((e) => e.valor === venta.estatusEntrega)
                   return (
                     <TableRow key={venta.id}>
                       <TableCell className="font-medium">{venta.articuloNombre}</TableCell>
@@ -165,20 +175,37 @@ export default function VentasPage() {
                       <TableCell className="text-emerald-600 font-medium">
                         {formatearMoneda(venta.precioVenta * venta.cantidad)}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{metodoInfo?.etiqueta || venta.metodoPago}</TableCell>
-                      <TableCell className="text-muted-foreground">{formatearFecha(venta.fechaPago)}</TableCell>
+                      <TableCell className="text-muted-foreground">{metodoInfo?.etiqueta || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">{venta.fechaPago ? formatearFecha(venta.fechaPago) : "-"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Badge className={cn(
                             "border-0",
                             venta.estatusPago === "pagado" ? "bg-emerald-100 text-emerald-700" : "bg-yellow-100 text-yellow-700"
                           )}>
-                            {estatusInfo?.etiqueta}
+                            {estatusInfo?.etiqueta || "Por pagar"}
                           </Badge>
                           <button
                             onClick={() => toggleEstatus(venta)}
                             className="size-7 rounded-full border border-muted-foreground/30 flex items-center justify-center hover:bg-muted transition-colors"
                             title="Cambiar estado de pago"
+                          >
+                            <ArrowLeftRight className="h-3.5 w-3.5 text-muted-foreground" />
+                          </button>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Badge className={cn(
+                            "border-0 cursor-pointer transition-opacity hover:opacity-80",
+                            venta.estatusEntrega === "entregado" ? "bg-emerald-100 text-emerald-700" : "bg-yellow-100 text-yellow-700"
+                          )}>
+                            {entregaInfo?.etiqueta || "Por entregar"}
+                          </Badge>
+                          <button
+                            onClick={() => toggleEntrega(venta)}
+                            className="size-7 rounded-full border border-muted-foreground/30 flex items-center justify-center hover:bg-muted transition-colors"
+                            title="Cambiar estado de entrega"
                           >
                             <ArrowLeftRight className="h-3.5 w-3.5 text-muted-foreground" />
                           </button>

@@ -27,6 +27,8 @@ export interface ProductoPedido {
   envioCliente?: number
   clienteRef?: string
   clienteNombre: string
+  tipoProducto?: "cliente" | "inventario"
+  retirado?: boolean
   estadoPago: "sin_pagar" | "parcial" | "pagado"
   montoPagado?: number
   creadoEn: Timestamp
@@ -81,10 +83,11 @@ export type EstadoArticulo = "en_stock" | "vendido" | "apartado"
 
 export type MetodoPago = "pago_movil" | "efectivo_usd" | "dolares_digitales"
 export type EstatusPagoVenta = "por_pagar" | "pagado"
+export type EstatusEntrega = "por_entregar" | "entregado"
 
 export interface Venta {
   id: string
-  articuloId: string
+  articuloId?: string
   articuloNombre: string
   articuloCodigo?: string
   cantidad: number
@@ -92,9 +95,10 @@ export interface Venta {
   clienteId?: string
   clienteNombre: string
   clienteWhatsapp?: string
-  metodoPago: MetodoPago
-  fechaPago: Timestamp
-  estatusPago: EstatusPagoVenta
+  metodoPago?: MetodoPago
+  fechaPago?: Timestamp
+  estatusPago?: EstatusPagoVenta
+  estatusEntrega: EstatusEntrega
   creadoEn: Timestamp
   actualizadoEn: Timestamp
 }

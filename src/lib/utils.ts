@@ -63,6 +63,11 @@ export const ESTATUS_PAGO_VENTA = [
   { valor: "pagado", etiqueta: "Pagado" },
 ] as const
 
+export const ESTATUS_ENTREGA = [
+  { valor: "por_entregar", etiqueta: "Por entregar" },
+  { valor: "entregado", etiqueta: "Entregado" },
+] as const
+
 export const SIGUIENTE_ESTADO: Record<string, string> = {
   borrador: "comprado",
   comprado: "transito_china_usa",
@@ -70,5 +75,4 @@ export const SIGUIENTE_ESTADO: Record<string, string> = {
   casillero_usa: "transito_usa_ven",
   transito_usa_ven: "entregado_ven",
   entregado_ven: "entregado_cliente",
-  entregado_cliente: "cerrado",
 }
