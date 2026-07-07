@@ -493,17 +493,6 @@ export default function DetallePedidoPage({
                         </div>
                       )}
 
-                      <Button
-                        onClick={agregarProducto}
-                        className="w-full"
-                        disabled={creando}
-                      >
-                        {creando ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          "Agregar al pedido"
-                        )}
-                      </Button>
                     </div>
 
                     <div className="md:col-span-2">
@@ -598,6 +587,17 @@ export default function DetallePedidoPage({
                       )}
                     </div>
                   </div>
+                  <Button
+                    onClick={agregarProducto}
+                    className="w-full"
+                    disabled={creando}
+                  >
+                    {creando ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Agregar al pedido"
+                    )}
+                  </Button>
                 </DialogContent>
               </Dialog>
             )}
