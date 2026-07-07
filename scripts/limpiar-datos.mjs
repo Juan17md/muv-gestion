@@ -50,9 +50,9 @@ async function main() {
 
   const admin = await import("firebase-admin")
 
-  if (!admin.apps.length) {
+  if (!admin.getApps().length) {
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+      credential: admin.cert(serviceAccount),
     })
   }
 
@@ -60,40 +60,57 @@ async function main() {
   console.log(`\nConectado a: ${serviceAccount.project_id}\n`)
 
   async function borrarColeccion(nombre) {
-    const snapshot = await db.collection(nombre).get()
-    if (snapshot.empty) {
-      console.log(`  ✓ ${nombre} — vacía`)
-      return
+    try {
+      const snapshot = await db.collection(nombre).get()
+      console.log(`  → ${nombre}: ${snapshot.size} documento(s) encontrados`)
+      if (snapshot.empty) {
+        console.log(`  ✓ ${nombre} — vacía`)
+        return
+      }
+      const docs = snapshot.docs
+      if (!docs || docs.length === 0) return
+      const batch = db.batch()
+      docs.forEach((d) => {
+        if (d && d.ref) batch.delete(d.ref)
+      })
+      await batch.commit()
+      console.log(`  ✓ ${nombre} — ${docs.length} documento(s) eliminado(s)`)
+    } catch (e) {
+      console.error(`  ✗ Error en ${nombre}: ${e.message}`)
     }
-    const batch = db.batch()
-    snapshot.docs.forEach((d) => batch.delete(d.ref))
-    await batch.commit()
-    console.log(`  ✓ ${nombre} — ${snapshot.size} documento(s) eliminado(s)`)
   }
 
   async function borrarPedidosConProductos() {
-    const snapshot = await db.collection("pedidos").get()
-    if (snapshot.empty) {
-      console.log("  ✓ pedidos — vacía")
-      return
-    }
-
-    let totalProductos = 0
-    for (const doc of snapshot.docs) {
-      const subSnapshot = await db.collection("pedidos").doc(doc.id).collection("productos").get()
-      if (!subSnapshot.empty) {
-        const batch = db.batch()
-        subSnapshot.docs.forEach((p) => batch.delete(p.ref))
-        await batch.commit()
-        totalProductos += subSnapshot.size
+    try {
+      const snapshot = await db.collection("pedidos").get()
+      console.log(`  → pedidos: ${snapshot.size} pedido(s) encontrados`)
+      if (snapshot.empty) {
+        console.log("  ✓ pedidos — vacía")
+        return
       }
+
+      let totalProductos = 0
+      const pedidos = snapshot.docs
+      for (const doc of pedidos) {
+        if (!doc || !doc.id) continue
+        const subSnapshot = await db.collection("pedidos").doc(doc.id).collection("productos").get()
+        if (!subSnapshot.empty) {
+          const productos = subSnapshot.docs
+          const batch = db.batch()
+          productos.forEach((p) => { if (p && p.ref) batch.delete(p.ref) })
+          await batch.commit()
+          totalProductos += productos.length
+        }
+      }
+
+      const batch = db.batch()
+      pedidos.forEach((doc) => { if (doc && doc.ref) batch.delete(doc.ref) })
+      await batch.commit()
+
+      console.log(`  ✓ pedidos — ${pedidos.length} pedido(s) + ${totalProductos} producto(s) eliminado(s)`)
+    } catch (e) {
+      console.error(`  ✗ Error en pedidos: ${e.message}`)
     }
-
-    const batch = db.batch()
-    snapshot.docs.forEach((doc) => batch.delete(doc.ref))
-    await batch.commit()
-
-    console.log(`  ✓ pedidos — ${snapshot.size} pedido(s) + ${totalProductos} producto(s) eliminado(s)`)
   }
 
   await borrarColeccion("clientes")
