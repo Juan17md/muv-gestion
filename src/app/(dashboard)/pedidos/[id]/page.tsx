@@ -60,6 +60,7 @@ import {
   Wallet,
   User,
   PackagePlus,
+  Pencil,
 } from "lucide-react"
 import Link from "next/link"
 import type { Pedido, ProductoPedido, ArticuloTienda, EstadoPedido } from "@/lib/types"
@@ -99,6 +100,7 @@ export default function DetallePedidoPage({
   const [creando, setCreando] = useState(false)
   const [retiroDialogoAbierto, setRetiroDialogoAbierto] = useState(false)
   const [whatsappMap, setWhatsappMap] = useState<Record<string, string>>({})
+  const [productoEditando, setProductoEditando] = useState<string | null>(null)
 
   useEffect(() => {
     const unsubPedido = onSnapshot(doc(db, "pedidos", id), (snap) => {
@@ -247,20 +249,17 @@ export default function DetallePedidoPage({
         data.clienteNombre = ""
       }
 
-      await productosService.agregar(id, data as Parameters<typeof productosService.agregar>[1])
-      setNvoNombre("")
-      setNvoCantidad("")
-      setNvoPrecio("")
-      setNvoMargen("")
-      setNvoCliente("")
-      setNvoEnvio("")
-      setNvoPrecioVenta("")
-      setNvoEstadoPago("sin_pagar")
-      setNvoMontoPagado("")
+      if (productoEditando) {
+        await productosService.actualizar(id, productoEditando, data)
+        toast.success("Producto actualizado")
+      } else {
+        await productosService.agregar(id, data as Parameters<typeof productosService.agregar>[1])
+        toast.success("Producto agregado")
+      }
+      limpiarFormulario()
       setDialogoAbierto(false)
-      toast.success("Producto agregado")
     } catch {
-      toast.error("Error al agregar producto")
+      toast.error("Error al guardar producto")
     } finally {
       setCreando(false)
     }
@@ -275,6 +274,34 @@ export default function DetallePedidoPage({
     await productosService.actualizar(id, productoId, {
       estadoPago: estadoPago as ProductoPedido["estadoPago"],
     })
+  }
+
+  const limpiarFormulario = () => {
+    setNvoNombre("")
+    setNvoCantidad("")
+    setNvoPrecio("")
+    setNvoMargen("")
+    setNvoCliente("")
+    setNvoEnvio("")
+    setNvoPrecioVenta("")
+    setNvoEstadoPago("sin_pagar")
+    setNvoMontoPagado("")
+    setProductoEditando(null)
+  }
+
+  const abrirEdicion = (prod: ProductoPedido) => {
+    setNvoNombre(prod.nombre)
+    setNvoCantidad(String(prod.cantidad))
+    setNvoPrecio(String(prod.precioUnitario))
+    setNvoMargen(prod.margen ? String(prod.margen) : "")
+    setNvoCliente(prod.clienteNombre || "")
+    setNvoEnvio(prod.envioCliente ? String(prod.envioCliente) : "")
+    setNvoPrecioVenta(prod.precioVenta ? String(prod.precioVenta) : "")
+    setNvoTipo(prod.tipoProducto === "inventario" || (!prod.tipoProducto && !prod.clienteNombre) ? "inventario" : "cliente")
+    setNvoEstadoPago(prod.estadoPago || "sin_pagar")
+    setNvoMontoPagado(prod.montoPagado ? String(prod.montoPagado) : "")
+    setProductoEditando(prod.id || null)
+    setDialogoAbierto(true)
   }
 
   if (loading || !pedido) {
@@ -390,9 +417,9 @@ export default function DetallePedidoPage({
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-2xl">
                   <DialogHeader>
-                    <DialogTitle>Agregar Producto</DialogTitle>
+                    <DialogTitle>{productoEditando ? "Editar Producto" : "Agregar Producto"}</DialogTitle>
                     <DialogDescription className="sr-only">
-                      Agrega un producto al pedido
+                      {productoEditando ? "Edita el producto en el pedido" : "Agrega un producto al pedido"}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-6 py-4">
@@ -594,6 +621,8 @@ export default function DetallePedidoPage({
                   >
                     {creando ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : productoEditando ? (
+                      "Guardar cambios"
                     ) : (
                       "Agregar al pedido"
                     )}
@@ -627,12 +656,14 @@ export default function DetallePedidoPage({
                     <TableHead>Producto</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead className="text-right">Cant.</TableHead>
+                    <TableHead className="text-right">Costo/U</TableHead>
                     <TableHead className="text-right">Costo</TableHead>
                     <TableHead className="text-right">Dscto</TableHead>
                     <TableHead className="text-right">Envío</TableHead>
+                    <TableHead className="text-right">Venta/U</TableHead>
                     <TableHead className="text-right">Venta</TableHead>
                     <TableHead>Pago</TableHead>
-                    <TableHead className="w-24"></TableHead>
+                    <TableHead className="w-24">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -659,12 +690,22 @@ export default function DetallePedidoPage({
                           {prod.clienteNombre && !esInventario ? prod.clienteNombre : "-"}
                         </TableCell>
                         <TableCell className="text-right">{prod.cantidad}</TableCell>
+                        <TableCell className="text-right font-medium text-muted-foreground">
+                          {formatearMoneda(prod.precioUnitario)}
+                        </TableCell>
                         <TableCell className="text-right font-medium">{formatearMoneda(totalProd)}</TableCell>
                         <TableCell className="text-right text-green-600">
                           {!esInventario && prod.margen ? formatearMoneda(prod.margen) : "-"}
                         </TableCell>
                         <TableCell className="text-right">
                           {prod.envioCliente ? formatearMoneda(prod.envioCliente) : "-"}
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-muted-foreground">
+                          {prod.precioVenta
+                            ? formatearMoneda(prod.precioVenta)
+                            : !esInventario
+                              ? formatearMoneda(prod.cantidad > 0 ? precioCliente / prod.cantidad : 0)
+                              : "-"}
                         </TableCell>
                         <TableCell className="text-right font-medium text-emerald-600">
                           {prod.precioVenta
@@ -704,14 +745,23 @@ export default function DetallePedidoPage({
                                 </Button>
                               )}
                               {esBorrador && prod.id && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  onClick={() => eliminarProducto(prod.id!)}
-                                  className="text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={() => abrirEdicion(prod)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={() => eliminarProducto(prod.id!)}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
                               )}
                             </div>
                           )}
