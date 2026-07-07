@@ -100,10 +100,16 @@ export default function DetallePedidoPage({
       setLoading(false)
     })
 
-    const unsubProds = productosService.listar(id).then(setProductos)
+    const unsubProds = onSnapshot(
+      query(collection(db, "pedidos", id, "productos"), orderBy("creadoEn")),
+      (snap) => {
+        setProductos(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ProductoPedido)))
+      }
+    )
 
     return () => {
       unsubPedido()
+      unsubProds()
     }
   }, [id, router])
 
