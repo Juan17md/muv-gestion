@@ -388,14 +388,15 @@ export default function DetallePedidoPage({
                     Agregar
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="sm:max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>Agregar Producto</DialogTitle>
                     <DialogDescription className="sr-only">
                       Agrega un producto al pedido
                     </DialogDescription>
                   </DialogHeader>
-                    <div className="space-y-4 py-4">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-6 py-4">
+                    <div className="md:col-span-3 space-y-4">
                       <div className="space-y-3">
                         <Label>Nombre del producto</Label>
                         <Input
@@ -479,45 +480,6 @@ export default function DetallePedidoPage({
                         </div>
                       </div>
 
-                      <div className="rounded-lg border bg-muted/50 px-4 py-3 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Subtotal</span>
-                          <span>{formatearMoneda((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Envío</span>
-                          <span>+{formatearMoneda(Number(nvoEnvio) || 0)}</span>
-                        </div>
-                        {Number(nvoMargen) > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Descuento</span>
-                            <span className="text-green-600">-{formatearMoneda(Number(nvoMargen))}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between font-medium border-t pt-1 mt-1">
-                          <span>Total</span>
-                          <span>
-                            {formatearMoneda(
-                              (Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
-                              (Number(nvoEnvio) || 0) -
-                              (Number(nvoMargen) || 0)
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-primary font-semibold pt-1">
-                          <span>Precio por artículo</span>
-                          <span>
-                            {formatearMoneda(
-                              Number(nvoCantidad) > 0
-                                ? ((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
-                                    (Number(nvoEnvio) || 0) -
-                                    (Number(nvoMargen) || 0)) / Number(nvoCantidad)
-                                : 0
-                            )}
-                          </span>
-                        </div>
-                      </div>
-
                       {Number(nvoCantidad) > 0 && (
                         <div className="space-y-3">
                           <Label>Precio de venta</Label>
@@ -579,17 +541,60 @@ export default function DetallePedidoPage({
                           )}
                         </>
                       )}
-                    <Button
-                      onClick={agregarProducto}
-                      className="w-full"
-                      disabled={creando}
-                    >
-                      {creando ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Agregar al pedido"
-                      )}
-                    </Button>
+                      <Button
+                        onClick={agregarProducto}
+                        className="w-full"
+                        disabled={creando}
+                      >
+                        {creando ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Agregar al pedido"
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <div className="rounded-lg border bg-muted/50 px-4 py-3 text-sm space-y-2 sticky top-4">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Resumen</p>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Subtotal</span>
+                          <span>{formatearMoneda((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0))}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Envío</span>
+                          <span>+{formatearMoneda(Number(nvoEnvio) || 0)}</span>
+                        </div>
+                        {Number(nvoMargen) > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Descuento</span>
+                            <span className="text-green-600">-{formatearMoneda(Number(nvoMargen))}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-medium border-t pt-2 mt-2">
+                          <span>Total</span>
+                          <span>
+                            {formatearMoneda(
+                              (Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
+                              (Number(nvoEnvio) || 0) -
+                              (Number(nvoMargen) || 0)
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-primary font-semibold pt-1">
+                          <span>Precio por artículo</span>
+                          <span>
+                            {formatearMoneda(
+                              Number(nvoCantidad) > 0
+                                ? ((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
+                                    (Number(nvoEnvio) || 0) -
+                                    (Number(nvoMargen) || 0)) / Number(nvoCantidad)
+                                : 0
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </DialogContent>
               </Dialog>
