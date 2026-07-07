@@ -239,7 +239,7 @@ export default function DetallePedidoPage({
       }
       if (precioVenta !== undefined) data.precioVenta = precioVenta
       if (envio) data.envioCliente = envio
-      if (margen) data.margen = margen
+      if (nvoTipo === "cliente") data.margen = margen
       if (estadoPago === "parcial") {
         data.montoPagado = Number(nvoMontoPagado) || 0
       }
@@ -695,7 +695,9 @@ export default function DetallePedidoPage({
                         </TableCell>
                         <TableCell className="text-right font-medium">{formatearMoneda(totalProd)}</TableCell>
                         <TableCell className="text-right text-green-600">
-                          {!esInventario && prod.margen ? formatearMoneda(prod.margen) : "-"}
+                          {!esInventario
+                            ? formatearMoneda(prod.margen ?? 0)
+                            : "-"}
                         </TableCell>
                         <TableCell className="text-right">
                           {prod.envioCliente ? formatearMoneda(prod.envioCliente) : "-"}
