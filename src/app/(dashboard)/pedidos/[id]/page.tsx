@@ -203,7 +203,7 @@ export default function DetallePedidoPage({
     const precioPorArticulo = cantidad > 0 ? (cantidad * precioUnitario + envio - margen) / cantidad : 0
     const precioVenta = nvoPrecioVenta ? Number(nvoPrecioVenta) : undefined
 
-    if (nvoTipo === "cliente" && precioVenta !== undefined && precioVenta < precioPorArticulo) {
+    if (precioVenta !== undefined && precioVenta < precioPorArticulo) {
       toast.error("El precio de venta no puede ser menor al precio por artículo")
       setCreando(false)
       return
@@ -220,9 +220,9 @@ export default function DetallePedidoPage({
       }
       if (precioVenta !== undefined) data.precioVenta = precioVenta
       if (envio) data.envioCliente = envio
+      if (margen) data.margen = margen
       if (nvoTipo === "cliente") {
         data.clienteNombre = nvoCliente
-        if (margen) data.margen = margen
       } else {
         data.clienteNombre = ""
       }
@@ -432,33 +432,18 @@ export default function DetallePedidoPage({
                         </div>
                       </div>
 
-                      {nvoTipo === "cliente" && (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-3">
-                            <Label>Descuento (USD)</Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              step={0.01}
-                              placeholder="0.00"
-                              value={nvoMargen}
-                              onChange={(e) => setNvoMargen(e.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-3">
-                            <Label>Precio de envío (USD)</Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              step={0.01}
-                              placeholder="0.00"
-                              value={nvoEnvio}
-                              onChange={(e) => setNvoEnvio(e.target.value)}
-                            />
-                          </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <Label>Descuento (USD)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            placeholder="0.00"
+                            value={nvoMargen}
+                            onChange={(e) => setNvoMargen(e.target.value)}
+                          />
                         </div>
-                      )}
-                      {nvoTipo === "inventario" && (
                         <div className="space-y-3">
                           <Label>Precio de envío (USD)</Label>
                           <Input
@@ -470,7 +455,7 @@ export default function DetallePedidoPage({
                             onChange={(e) => setNvoEnvio(e.target.value)}
                           />
                         </div>
-                      )}
+                      </div>
 
                       <div className="rounded-lg border bg-muted/50 px-4 py-3 text-sm">
                         <div className="flex justify-between">
@@ -481,7 +466,7 @@ export default function DetallePedidoPage({
                           <span className="text-muted-foreground">Envío</span>
                           <span>+{formatearMoneda(Number(nvoEnvio) || 0)}</span>
                         </div>
-                        {nvoTipo === "cliente" && Number(nvoMargen) > 0 && (
+                        {Number(nvoMargen) > 0 && (
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Descuento</span>
                             <span className="text-green-600">-{formatearMoneda(Number(nvoMargen))}</span>
