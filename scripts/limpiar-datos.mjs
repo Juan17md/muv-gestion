@@ -49,6 +49,7 @@ async function main() {
   const serviceAccount = JSON.parse(readFileSync(rutaJson, "utf-8"))
 
   const admin = await import("firebase-admin")
+  const { getFirestore } = await import("firebase-admin/firestore")
 
   if (!admin.getApps().length) {
     admin.initializeApp({
@@ -56,7 +57,7 @@ async function main() {
     })
   }
 
-  const db = admin.firestore()
+  const db = getFirestore()
   console.log(`\nConectado a: ${serviceAccount.project_id}\n`)
 
   async function borrarColeccion(nombre) {
