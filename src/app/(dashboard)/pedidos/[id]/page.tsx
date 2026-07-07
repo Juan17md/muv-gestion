@@ -660,6 +660,7 @@ export default function DetallePedidoPage({
                     <TableHead className="text-right">Costo</TableHead>
                     <TableHead className="text-right">Dscto</TableHead>
                     <TableHead className="text-right">Envío</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
                     <TableHead className="text-right">Venta/U</TableHead>
                     <TableHead className="text-right">Venta</TableHead>
                     <TableHead>Pago</TableHead>
@@ -703,6 +704,9 @@ export default function DetallePedidoPage({
                         </TableCell>
                         <TableCell className="text-right">
                           {prod.envioCliente ? formatearMoneda(prod.envioCliente) : "-"}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatearMoneda(totalProd + (prod.envioCliente || 0) - (prod.margen || 0))}
                         </TableCell>
                         <TableCell className="text-right font-medium text-muted-foreground">
                           {prod.precioVenta
