@@ -16,6 +16,12 @@ import {
 } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -724,22 +730,33 @@ export default function DetallePedidoPage({
                         </TableCell>
                         <TableCell>
                           {!prod.retirado && (
-                            <div className="flex gap-1">
-                              {ESTADOS_PAGO.map((ep) => (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
                                 <button
-                                  key={ep.valor}
-                                  onClick={() => prod.id && cambiarPago(prod.id, ep.valor)}
                                   className={cn(
                                     "px-2 py-1 rounded text-[10px] font-medium transition-all",
-                                    prod.estadoPago === ep.valor
-                                      ? ep.color
-                                      : "bg-muted text-muted-foreground/50"
+                                    ESTADOS_PAGO.find((ep) => ep.valor === prod.estadoPago)?.color ||
+                                      "bg-muted text-muted-foreground"
                                   )}
                                 >
-                                  {ep.etiqueta}
+                                  {ESTADOS_PAGO.find((ep) => ep.valor === prod.estadoPago)?.etiqueta || "Sin Pagar"}
                                 </button>
-                              ))}
-                            </div>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="min-w-[120px]">
+                                {ESTADOS_PAGO.map((ep) => (
+                                  <DropdownMenuItem
+                                    key={ep.valor}
+                                    onClick={() => prod.id && cambiarPago(prod.id, ep.valor)}
+                                    className={cn(
+                                      "text-xs",
+                                      prod.estadoPago === ep.valor && "font-semibold"
+                                    )}
+                                  >
+                                    {ep.etiqueta}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           )}
                         </TableCell>
                         <TableCell>
