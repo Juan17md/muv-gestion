@@ -486,13 +486,25 @@ export default function DetallePedidoPage({
                             <span className="text-green-600">-{formatearMoneda(Number(nvoMargen))}</span>
                           </div>
                         )}
+                        <div className="flex justify-between text-primary font-semibold">
+                          <span>Precio por artículo</span>
+                          <span>
+                            {formatearMoneda(
+                              Number(nvoCantidad) > 0
+                                ? ((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
+                                    (Number(nvoEnvio) || 0) -
+                                    (Number(nvoMargen) || 0)) / Number(nvoCantidad)
+                                : 0
+                            )}
+                          </span>
+                        </div>
                         <div className="flex justify-between font-medium border-t pt-1 mt-1">
                           <span>Total</span>
                           <span>
                             {formatearMoneda(
                               (Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
                               (Number(nvoEnvio) || 0) -
-                              (nvoTipo === "cliente" ? (Number(nvoMargen) || 0) : 0)
+                              (Number(nvoMargen) || 0)
                             )}
                           </span>
                         </div>
