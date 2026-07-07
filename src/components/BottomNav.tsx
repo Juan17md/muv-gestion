@@ -2,14 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Package, Users, Store, Archive, LogOut } from "lucide-react"
+import { LayoutDashboard, Package, Users, Store, Archive, LogOut, BarChart3 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { auth } from "@/lib/firebase"
 import { useRouter } from "next/navigation"
 import { ToggleTema } from "./ToggleTema"
 
 const enlaces = [
-  { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/pedidos", label: "Pedidos", icon: Package },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/inventario", label: "Inventario", icon: Archive },
