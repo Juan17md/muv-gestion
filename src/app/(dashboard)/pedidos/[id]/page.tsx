@@ -667,8 +667,6 @@ export default function DetallePedidoPage({
                     <TableHead className="text-right">Dscto</TableHead>
                     <TableHead className="text-right">Envío</TableHead>
                     <TableHead className="text-right">Total</TableHead>
-                    <TableHead className="text-right">Venta/U</TableHead>
-                    <TableHead className="text-right">Venta</TableHead>
                     <TableHead>Pago</TableHead>
                     <TableHead className="w-24">Acciones</TableHead>
                   </TableRow>
@@ -676,7 +674,6 @@ export default function DetallePedidoPage({
                 <TableBody>
                   {productos.map((prod) => {
                     const totalProd = prod.precioUnitario * prod.cantidad
-                    const precioCliente = totalProd + (prod.margen || 0) + (prod.envioCliente || 0)
                     const esInventario = prod.tipoProducto === "inventario" || (!prod.tipoProducto && !prod.clienteNombre)
                     const whatsapp = prod.clienteRef ? whatsappMap[prod.clienteRef] : ""
 
@@ -713,20 +710,6 @@ export default function DetallePedidoPage({
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {formatearMoneda(totalProd + (prod.envioCliente || 0) - (prod.margen || 0))}
-                        </TableCell>
-                        <TableCell className="text-right font-medium text-muted-foreground">
-                          {prod.precioVenta
-                            ? formatearMoneda(prod.precioVenta)
-                            : !esInventario
-                              ? formatearMoneda(prod.cantidad > 0 ? precioCliente / prod.cantidad : 0)
-                              : "-"}
-                        </TableCell>
-                        <TableCell className="text-right font-medium text-emerald-600">
-                          {prod.precioVenta
-                            ? formatearMoneda(prod.precioVenta * prod.cantidad)
-                            : !esInventario
-                              ? formatearMoneda(precioCliente)
-                              : "-"}
                         </TableCell>
                         <TableCell>
                           {!prod.retirado && (
