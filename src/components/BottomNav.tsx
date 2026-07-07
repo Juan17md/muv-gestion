@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation"
 import { ToggleTema } from "./ToggleTema"
 
 const enlaces = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
   { href: "/pedidos", label: "Pedidos", icon: Package },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/inventario", label: "Inventario", icon: Archive },

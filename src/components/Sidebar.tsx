@@ -12,7 +12,7 @@ const secciones = [
   {
     titulo: "Gestión",
     enlaces: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
       { href: "/pedidos", label: "Pedidos", icon: Package },
     ],
   },

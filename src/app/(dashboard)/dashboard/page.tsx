@@ -70,8 +70,8 @@ export default function DashboardPage() {
     <div className="page-container space-y-10 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <p className="typography-label text-primary">Panel principal</p>
-          <h1 className="typography-title-premium">Dashboard</h1>
+          <p className="typography-label text-primary">Gestión de pedidos</p>
+          <h1 className="typography-title-premium">Panel de Pedidos</h1>
         </div>
         <Link href="/pedidos/nuevo">
           <Button className="gap-2">
