@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -87,9 +88,12 @@ export default function ClientesPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Registrar Cliente</DialogTitle>
+              <DialogDescription className="sr-only">
+                Registra un nuevo cliente en el sistema
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label>Nombre</Label>
                 <Input
                   value={formNombre}
@@ -97,7 +101,7 @@ export default function ClientesPage() {
                   placeholder="Nombre del cliente"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label>WhatsApp</Label>
                 <Input
                   value={formWhatsapp}
@@ -105,7 +109,7 @@ export default function ClientesPage() {
                   placeholder="Ej: 584121234567"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label>Notas (opcional)</Label>
                 <Input
                   value={formNotas}

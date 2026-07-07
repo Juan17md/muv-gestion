@@ -19,6 +19,7 @@ import {
   ShoppingBag,
 } from "lucide-react"
 import type { ArticuloTienda } from "@/lib/types"
+import RegistrarVentaDialog from "@/components/RegistrarVentaDialog"
 
 export default function TiendaDashboard() {
   const [articulos, setArticulos] = useState<ArticuloTienda[]>([])
@@ -58,12 +59,15 @@ export default function TiendaDashboard() {
           <p className="typography-label text-primary">Mi tienda</p>
           <h1 className="typography-title-premium">Panel de Tienda</h1>
         </div>
-        <Link href="/inventario">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Gestionar inventario
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <RegistrarVentaDialog articulosEnStock={enStock} />
+          <Link href="/inventario">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Gestionar inventario
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

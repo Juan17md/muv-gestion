@@ -13,10 +13,21 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import { Plus, Store, Pencil, Trash2, Loader2 } from "lucide-react"
 import type { Tienda } from "@/lib/types"
@@ -26,6 +37,7 @@ export default function TiendasPage() {
   const [loading, setLoading] = useState(true)
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null)
 
   const [formNombre, setFormNombre] = useState("")
   const [formNotas, setFormNotas] = useState("")
@@ -82,9 +94,14 @@ export default function TiendasPage() {
   }
 
   const eliminar = async (id: string) => {
-    if (!confirm("¿Eliminar esta tienda?")) return
-    await tiendasService.eliminar(id)
+    setEliminandoId(id)
+  }
+
+  const confirmarEliminar = async () => {
+    if (!eliminandoId) return
+    await tiendasService.eliminar(eliminandoId)
     toast.success("Tienda eliminada")
+    setEliminandoId(null)
   }
 
   return (
@@ -104,9 +121,12 @@ export default function TiendasPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editandoId ? "Editar Tienda" : "Registrar Tienda"}</DialogTitle>
+              <DialogDescription className="sr-only">
+                {editandoId ? "Edita los datos de la tienda" : "Registra una nueva tienda"}
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label>Nombre</Label>
                 <Input
                   value={formNombre}
@@ -114,7 +134,7 @@ export default function TiendasPage() {
                   placeholder="Nombre de la tienda"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label>Notas (opcional)</Label>
                 <Input
                   value={formNotas}
@@ -203,6 +223,22 @@ export default function TiendasPage() {
           </div>
         )}
       </div>
+      <AlertDialog open={!!eliminandoId} onOpenChange={(open) => !open && setEliminandoId(null)}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar tienda</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás segura de eliminar esta tienda? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEliminandoId(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmarEliminar}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

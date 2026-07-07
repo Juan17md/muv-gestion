@@ -146,15 +146,15 @@ export default function DetalleClientePage({
       ) : (
         <Card className="card-glow">
           <CardContent className="p-6 space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label>Nombre</Label>
               <Input value={formNombre} onChange={(e) => setFormNombre(e.target.value)} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label>WhatsApp</Label>
               <Input value={formWhatsapp} onChange={(e) => setFormWhatsapp(e.target.value)} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label>Notas</Label>
               <Input value={formNotas} onChange={(e) => setFormNotas(e.target.value)} />
             </div>

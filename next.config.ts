@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Turbopack tiene mejor HMR que webpack, detecta cambios al instante
+  turbopack: {},
 };
 
 export default nextConfig;

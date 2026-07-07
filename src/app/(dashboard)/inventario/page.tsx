@@ -15,17 +15,21 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import {
   Plus,
@@ -51,14 +55,15 @@ export default function InventarioPage() {
   const [editandoId, setEditandoId] = useState<string | null>(null)
 
   const [formNombre, setFormNombre] = useState("")
-  const [formCantidad, setFormCantidad] = useState(1)
-  const [formPrecioVenta, setFormPrecioVenta] = useState(0)
-  const [formCosto, setFormCosto] = useState(0)
-  const [formCategoria, setFormCategoria] = useState("")
-  const [formEstado, setFormEstado] = useState<string>("en_stock")
-  const [formCliente, setFormCliente] = useState("")
+  const [formCantidad, setFormCantidad] = useState("")
+  const [formPrecioCompra, setFormPrecioCompra] = useState("")
+  const [formPrecioVenta, setFormPrecioVenta] = useState("")
+  const [formTiendaCompra, setFormTiendaCompra] = useState("")
+  const [formCodigo, setFormCodigo] = useState("")
+  const [formProveedor, setFormProveedor] = useState("")
   const [formNotas, setFormNotas] = useState("")
   const [guardando, setGuardando] = useState(false)
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null)
 
   useEffect(() => {
     const q = query(collection(db, "inventario"), orderBy("creadoEn", "desc"))
@@ -73,22 +78,22 @@ export default function InventarioPage() {
     if (articulo) {
       setEditandoId(articulo.id)
       setFormNombre(articulo.nombre)
-      setFormCantidad(articulo.cantidad)
-      setFormPrecioVenta(articulo.precioVenta)
-      setFormCosto(articulo.costo)
-      setFormCategoria(articulo.categoria || "")
-      setFormEstado(articulo.estado)
-      setFormCliente(articulo.clienteNombre || "")
+      setFormCantidad(String(articulo.cantidad))
+      setFormPrecioCompra(String(articulo.costo))
+      setFormPrecioVenta(String(articulo.precioVenta))
+      setFormTiendaCompra(articulo.tiendaCompra || "")
+      setFormCodigo(articulo.codigo || "")
+      setFormProveedor(articulo.proveedor || "")
       setFormNotas(articulo.notas || "")
     } else {
       setEditandoId(null)
       setFormNombre("")
-      setFormCantidad(1)
-      setFormPrecioVenta(0)
-      setFormCosto(0)
-      setFormCategoria("")
-      setFormEstado("en_stock")
-      setFormCliente("")
+      setFormCantidad("")
+      setFormPrecioCompra("")
+      setFormPrecioVenta("")
+      setFormTiendaCompra("")
+      setFormCodigo("")
+      setFormProveedor("")
       setFormNotas("")
     }
     setDialogoAbierto(true)
@@ -103,12 +108,13 @@ export default function InventarioPage() {
     try {
       const data = {
         nombre: formNombre,
-        cantidad: formCantidad,
-        precioVenta: formPrecioVenta,
-        costo: formCosto,
-        categoria: formCategoria || undefined,
-        estado: formEstado as ArticuloTienda["estado"],
-        clienteNombre: formCliente || undefined,
+        cantidad: Number(formCantidad) || 0,
+        costo: Number(formPrecioCompra) || 0,
+        precioVenta: Number(formPrecioVenta) || 0,
+        tiendaCompra: formTiendaCompra || undefined,
+        codigo: formCodigo || undefined,
+        proveedor: formProveedor || undefined,
+        estado: "en_stock" as ArticuloTienda["estado"],
         notas: formNotas || undefined,
       }
 
@@ -128,9 +134,14 @@ export default function InventarioPage() {
   }
 
   const eliminar = async (id: string) => {
-    if (!confirm("¿Eliminar este artículo?")) return
-    await inventarioService.eliminar(id)
+    setEliminandoId(id)
+  }
+
+  const confirmarEliminar = async () => {
+    if (!eliminandoId) return
+    await inventarioService.eliminar(eliminandoId)
     toast.success("Artículo eliminado")
+    setEliminandoId(null)
   }
 
   const filtrados = articulos.filter((a) => {
@@ -139,8 +150,9 @@ export default function InventarioPage() {
       const q = busqueda.toLowerCase()
       return (
         a.nombre.toLowerCase().includes(q) ||
-        (a.clienteNombre?.toLowerCase().includes(q) ?? false) ||
-        (a.categoria?.toLowerCase().includes(q) ?? false)
+        (a.codigo?.toLowerCase().includes(q) ?? false) ||
+        (a.tiendaCompra?.toLowerCase().includes(q) ?? false) ||
+        (a.proveedor?.toLowerCase().includes(q) ?? false)
       )
     }
     return true
@@ -160,53 +172,49 @@ export default function InventarioPage() {
               Artículo
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>{editandoId ? "Editar Artículo" : "Nuevo Artículo"}</DialogTitle>
+              <DialogDescription className="sr-only">
+                {editandoId ? "Edita los datos del artículo" : "Completa los datos del nuevo artículo"}
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Nombre del artículo</Label>
-                <Input value={formNombre} onChange={(e) => setFormNombre(e.target.value)} placeholder="Ej: Funda iPhone 15" />
-              </div>
               <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-3 col-span-2">
+                  <Label>Nombre del artículo</Label>
+                  <Input value={formNombre} onChange={(e) => setFormNombre(e.target.value)} placeholder="Ej: Funda iPhone 15" />
+                </div>
+                <div className="space-y-3">
                   <Label>Cantidad</Label>
-                  <Input type="number" min={0} value={formCantidad} onChange={(e) => setFormCantidad(Number(e.target.value))} />
+                  <Input type="number" min={0} value={formCantidad} onChange={(e) => setFormCantidad(e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Precio (USD)</Label>
-                  <Input type="number" min={0} step={0.01} value={formPrecioVenta} onChange={(e) => setFormPrecioVenta(Number(e.target.value))} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Costo (USD)</Label>
-                  <Input type="number" min={0} step={0.01} value={formCosto} onChange={(e) => setFormCosto(Number(e.target.value))} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Categoría</Label>
-                <Input value={formCategoria} onChange={(e) => setFormCategoria(e.target.value)} placeholder="Ej: Accesorios, Ropa, Electrónica..." />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Estado</Label>
-                  <Select value={formEstado} onValueChange={setFormEstado}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ESTADOS_ARTICULO.map((e) => (
-                        <SelectItem key={e.valor} value={e.valor}>{e.etiqueta}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-3">
+                  <Label>Precio compra (USD)</Label>
+                  <Input type="number" min={0} step={0.01} value={formPrecioCompra} onChange={(e) => setFormPrecioCompra(e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Cliente</Label>
-                  <Input value={formCliente} onChange={(e) => setFormCliente(e.target.value)} placeholder="Quién lo compró" />
+                <div className="space-y-3">
+                  <Label>Precio venta (USD)</Label>
+                  <Input type="number" min={0} step={0.01} value={formPrecioVenta} onChange={(e) => setFormPrecioVenta(e.target.value)} />
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <Label>Tienda de compra</Label>
+                  <Input value={formTiendaCompra} onChange={(e) => setFormTiendaCompra(e.target.value)} placeholder="Ej: AliExpress, Shopee..." />
+                </div>
+                <div className="space-y-3">
+                  <Label>Código</Label>
+                  <Input value={formCodigo} onChange={(e) => setFormCodigo(e.target.value)} placeholder="ID producto" />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <Label>Proveedor</Label>
+                <Input value={formProveedor} onChange={(e) => setFormProveedor(e.target.value)} placeholder="Nombre del vendedor o proveedor" />
+              </div>
+              <div className="space-y-3">
                 <Label>Notas</Label>
                 <Input value={formNotas} onChange={(e) => setFormNotas(e.target.value)} placeholder="Detalles adicionales..." />
               </div>
@@ -221,7 +229,7 @@ export default function InventarioPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por nombre, cliente o categoría..." className="pl-10" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+          <Input placeholder="Buscar por nombre, código, tienda o proveedor..." className="pl-10" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-2">
           {FILTROS_ESTADO.map((f) => (
@@ -266,18 +274,19 @@ export default function InventarioPage() {
                         <div className="space-y-1 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-semibold">{articulo.nombre}</p>
+                            {articulo.codigo && <span className="text-xs text-muted-foreground">· {articulo.codigo}</span>}
                             <Badge className={cn(estadoInfo?.color, "border-0 text-[10px]")}>{estadoInfo?.etiqueta}</Badge>
                           </div>
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                             <span>Stock: <strong>{articulo.cantidad}</strong></span>
-                            <span>Precio: <strong>{formatearMoneda(articulo.precioVenta)}</strong></span>
-                            <span>Costo: <strong>{formatearMoneda(articulo.costo)}</strong></span>
-                            {articulo.categoria && <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{articulo.categoria}</span>}
+                            <span>Venta: <strong>{formatearMoneda(articulo.precioVenta)}</strong></span>
+                            <span>Compra: <strong>{formatearMoneda(articulo.costo)}</strong></span>
                           </div>
-                          {articulo.clienteNombre && (
+                          {(articulo.tiendaCompra || articulo.proveedor) && (
                             <p className="text-xs text-muted-foreground">
-                              Cliente: <span className="font-medium text-foreground">{articulo.clienteNombre}</span>
-                              {articulo.fechaVenta && ` · ${formatearFecha(articulo.fechaVenta)}`}
+                              {articulo.tiendaCompra && <span>Tienda: <span className="font-medium text-foreground">{articulo.tiendaCompra}</span></span>}
+                              {articulo.tiendaCompra && articulo.proveedor && <span> · </span>}
+                              {articulo.proveedor && <span>Proveedor: <span className="font-medium text-foreground">{articulo.proveedor}</span></span>}
                             </p>
                           )}
                           {articulo.notas && (
@@ -314,6 +323,22 @@ export default function InventarioPage() {
           </div>
         )}
       </div>
+      <AlertDialog open={!!eliminandoId} onOpenChange={(open) => !open && setEliminandoId(null)}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar artículo</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás segura de eliminar este artículo del inventario? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEliminandoId(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmarEliminar}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -66,11 +67,11 @@ export default function DetallePedidoPage({
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
 
   const [nvoNombre, setNvoNombre] = useState("")
-  const [nvoCantidad, setNvoCantidad] = useState(1)
-  const [nvoPrecio, setNvoPrecio] = useState(0)
-  const [nvoMargen, setNvoMargen] = useState(0)
+  const [nvoCantidad, setNvoCantidad] = useState("")
+  const [nvoPrecio, setNvoPrecio] = useState("")
+  const [nvoMargen, setNvoMargen] = useState("")
   const [nvoCliente, setNvoCliente] = useState("")
-  const [nvoEnvio, setNvoEnvio] = useState(0)
+  const [nvoEnvio, setNvoEnvio] = useState("")
   const [creando, setCreando] = useState(false)
 
   useEffect(() => {
@@ -116,19 +117,19 @@ export default function DetallePedidoPage({
     try {
       await productosService.agregar(id, {
         nombre: nvoNombre,
-        cantidad: nvoCantidad,
-        precioUnitario: nvoPrecio,
-        margen: nvoMargen,
-        envioCliente: nvoEnvio || undefined,
+        cantidad: Number(nvoCantidad) || 0,
+        precioUnitario: Number(nvoPrecio) || 0,
+        margen: Number(nvoMargen) || 0,
+        envioCliente: Number(nvoEnvio) || undefined,
         clienteNombre: nvoCliente,
         estadoPago: "sin_pagar",
       })
       setNvoNombre("")
-      setNvoCantidad(1)
-      setNvoPrecio(0)
-      setNvoMargen(0)
+      setNvoCantidad("")
+      setNvoPrecio("")
+      setNvoMargen("")
       setNvoCliente("")
-      setNvoEnvio(0)
+      setNvoEnvio("")
       setDialogoAbierto(false)
       toast.success("Producto agregado")
     } catch {
@@ -263,9 +264,12 @@ export default function DetallePedidoPage({
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Agregar Producto</DialogTitle>
+                    <DialogDescription className="sr-only">
+                      Agrega un producto al pedido
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <Label>Nombre del producto</Label>
                       <Input
                         value={nvoNombre}
@@ -274,49 +278,49 @@ export default function DetallePedidoPage({
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <Label>Cantidad</Label>
                         <Input
                           type="number"
                           min={1}
                           value={nvoCantidad}
-                          onChange={(e) => setNvoCantidad(Number(e.target.value))}
+                          onChange={(e) => setNvoCantidad(e.target.value)}
                         />
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <Label>Precio unitario (USD)</Label>
                         <Input
                           type="number"
                           min={0}
                           step={0.01}
                           value={nvoPrecio}
-                          onChange={(e) => setNvoPrecio(Number(e.target.value))}
+                          onChange={(e) => setNvoPrecio(e.target.value)}
                         />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <Label>Margen (USD)</Label>
                         <Input
                           type="number"
                           min={0}
                           step={0.01}
                           value={nvoMargen}
-                          onChange={(e) => setNvoMargen(Number(e.target.value))}
+                          onChange={(e) => setNvoMargen(e.target.value)}
                         />
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <Label>Envío cliente (USD)</Label>
                         <Input
                           type="number"
                           min={0}
                           step={0.01}
                           value={nvoEnvio}
-                          onChange={(e) => setNvoEnvio(Number(e.target.value))}
+                          onChange={(e) => setNvoEnvio(e.target.value)}
                         />
                       </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <Label>Cliente</Label>
                       <Input
                         value={nvoCliente}

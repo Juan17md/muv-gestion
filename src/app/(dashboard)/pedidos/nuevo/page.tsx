@@ -84,7 +84,7 @@ export default function NuevoPedidoPage() {
 
       <Card className="card-glow">
         <CardContent className="p-6 space-y-6">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label>Tienda existente</Label>
             {cargandoTiendas ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -135,7 +135,7 @@ export default function NuevoPedidoPage() {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="nueva-tienda">Nombre de la tienda</Label>
             <Input
               id="nueva-tienda"

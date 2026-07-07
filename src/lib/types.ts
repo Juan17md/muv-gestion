@@ -64,6 +64,9 @@ export interface ArticuloTienda {
   cantidad: number
   precioVenta: number
   costo: number
+  tiendaCompra?: string
+  codigo?: string
+  proveedor?: string
   categoria?: string
   estado: "en_stock" | "vendido" | "apartado"
   clienteNombre?: string
