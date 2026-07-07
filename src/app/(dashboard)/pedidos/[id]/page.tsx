@@ -227,7 +227,7 @@ export default function DetallePedidoPage({
     const precioPorArticulo = cantidad > 0 ? (cantidad * precioUnitario + envio - margen) / cantidad : 0
     const precioVenta = nvoPrecioVenta ? Number(nvoPrecioVenta) : undefined
 
-    if (precioVenta !== undefined && precioVenta < precioPorArticulo) {
+    if (nvoTipo === "cliente" && precioVenta !== undefined && precioVenta < precioPorArticulo) {
       toast.error("El precio de venta no puede ser menor al precio por artículo")
       setCreando(false)
       return
@@ -513,7 +513,7 @@ export default function DetallePedidoPage({
                         </div>
                       </div>
 
-                      {Number(nvoCantidad) > 0 && (
+                      {Number(nvoCantidad) > 0 && nvoTipo === "cliente" && (
                         <div className="space-y-3">
                           <Label>Precio de venta</Label>
                           <Input
