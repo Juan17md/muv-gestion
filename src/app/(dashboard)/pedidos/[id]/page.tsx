@@ -94,6 +94,8 @@ export default function DetallePedidoPage({
   const [nvoEnvio, setNvoEnvio] = useState("")
   const [nvoPrecioVenta, setNvoPrecioVenta] = useState("")
   const [nvoTipo, setNvoTipo] = useState<"cliente" | "inventario">("cliente")
+  const [nvoEstadoPago, setNvoEstadoPago] = useState<string>("sin_pagar")
+  const [nvoMontoPagado, setNvoMontoPagado] = useState("")
   const [creando, setCreando] = useState(false)
   const [retiroDialogoAbierto, setRetiroDialogoAbierto] = useState(false)
   const [whatsappMap, setWhatsappMap] = useState<Record<string, string>>({})
@@ -225,16 +227,20 @@ export default function DetallePedidoPage({
 
     setCreando(true)
     try {
+      const estadoPago = nvoTipo === "cliente" ? nvoEstadoPago : "sin_pagar"
       const data: Record<string, unknown> = {
         nombre: nvoNombre,
         cantidad,
         precioUnitario,
         tipoProducto: nvoTipo,
-        estadoPago: "sin_pagar",
+        estadoPago,
       }
       if (precioVenta !== undefined) data.precioVenta = precioVenta
       if (envio) data.envioCliente = envio
       if (margen) data.margen = margen
+      if (estadoPago === "parcial") {
+        data.montoPagado = Number(nvoMontoPagado) || 0
+      }
       if (nvoTipo === "cliente") {
         data.clienteNombre = nvoCliente
       } else {
@@ -249,6 +255,8 @@ export default function DetallePedidoPage({
       setNvoCliente("")
       setNvoEnvio("")
       setNvoPrecioVenta("")
+      setNvoEstadoPago("sin_pagar")
+      setNvoMontoPagado("")
       setDialogoAbierto(false)
       toast.success("Producto agregado")
     } catch {
@@ -486,7 +494,17 @@ export default function DetallePedidoPage({
                             <span className="text-green-600">-{formatearMoneda(Number(nvoMargen))}</span>
                           </div>
                         )}
-                        <div className="flex justify-between text-primary font-semibold">
+                        <div className="flex justify-between font-medium border-t pt-1 mt-1">
+                          <span>Total</span>
+                          <span>
+                            {formatearMoneda(
+                              (Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
+                              (Number(nvoEnvio) || 0) -
+                              (Number(nvoMargen) || 0)
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-primary font-semibold pt-1">
                           <span>Precio por artículo</span>
                           <span>
                             {formatearMoneda(
@@ -495,16 +513,6 @@ export default function DetallePedidoPage({
                                     (Number(nvoEnvio) || 0) -
                                     (Number(nvoMargen) || 0)) / Number(nvoCantidad)
                                 : 0
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex justify-between font-medium border-t pt-1 mt-1">
-                          <span>Total</span>
-                          <span>
-                            {formatearMoneda(
-                              (Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
-                              (Number(nvoEnvio) || 0) -
-                              (Number(nvoMargen) || 0)
                             )}
                           </span>
                         </div>
@@ -524,14 +532,52 @@ export default function DetallePedidoPage({
                       )}
 
                       {nvoTipo === "cliente" && (
-                        <div className="space-y-3">
-                          <Label>Cliente</Label>
-                          <Input
-                            value={nvoCliente}
-                            onChange={(e) => setNvoCliente(e.target.value)}
-                            placeholder="Nombre del cliente"
-                          />
-                        </div>
+                        <>
+                          <div className="space-y-3">
+                            <Label>Cliente</Label>
+                            <Input
+                              value={nvoCliente}
+                              onChange={(e) => setNvoCliente(e.target.value)}
+                              placeholder="Nombre del cliente"
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <Label>Estado del pago</Label>
+                            <div className="flex gap-1.5">
+                              {ESTADOS_PAGO.map((ep) => (
+                                <button
+                                  key={ep.valor}
+                                  type="button"
+                                  onClick={() => {
+                                    setNvoEstadoPago(ep.valor)
+                                    if (ep.valor !== "parcial") setNvoMontoPagado("")
+                                  }}
+                                  className={cn(
+                                    "flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all border",
+                                    nvoEstadoPago === ep.valor
+                                      ? ep.color + " border-transparent"
+                                      : "bg-muted text-muted-foreground border-transparent hover:border-border"
+                                  )}
+                                >
+                                  {ep.etiqueta}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          {nvoEstadoPago === "parcial" && (
+                            <div className="space-y-3">
+                              <Label>Monto pagado (USD)</Label>
+                              <Input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                placeholder="0.00"
+                                value={nvoMontoPagado}
+                                onChange={(e) => setNvoMontoPagado(e.target.value)}
+                              />
+                            </div>
+                          )}
+                        </>
                       )}
                     <Button
                       onClick={agregarProducto}
