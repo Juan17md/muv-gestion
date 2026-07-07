@@ -493,54 +493,6 @@ export default function DetallePedidoPage({
                         </div>
                       )}
 
-                      {nvoTipo === "cliente" && (
-                        <>
-                          <div className="space-y-3">
-                            <Label>Cliente</Label>
-                            <Input
-                              value={nvoCliente}
-                              onChange={(e) => setNvoCliente(e.target.value)}
-                              placeholder="Nombre del cliente"
-                            />
-                          </div>
-                          <div className="space-y-3">
-                            <Label>Estado del pago</Label>
-                            <div className="flex gap-1.5">
-                              {ESTADOS_PAGO.map((ep) => (
-                                <button
-                                  key={ep.valor}
-                                  type="button"
-                                  onClick={() => {
-                                    setNvoEstadoPago(ep.valor)
-                                    if (ep.valor !== "parcial") setNvoMontoPagado("")
-                                  }}
-                                  className={cn(
-                                    "flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all border",
-                                    nvoEstadoPago === ep.valor
-                                      ? ep.color + " border-transparent"
-                                      : "bg-muted text-muted-foreground border-transparent hover:border-border"
-                                  )}
-                                >
-                                  {ep.etiqueta}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          {nvoEstadoPago === "parcial" && (
-                            <div className="space-y-3">
-                              <Label>Monto pagado (USD)</Label>
-                              <Input
-                                type="number"
-                                min={0}
-                                step={0.01}
-                                placeholder="0.00"
-                                value={nvoMontoPagado}
-                                onChange={(e) => setNvoMontoPagado(e.target.value)}
-                              />
-                            </div>
-                          )}
-                        </>
-                      )}
                       <Button
                         onClick={agregarProducto}
                         className="w-full"
@@ -594,6 +546,56 @@ export default function DetallePedidoPage({
                           </span>
                         </div>
                       </div>
+
+                      {nvoTipo === "cliente" && (
+                        <div className="space-y-4">
+                          <Separator />
+                          <div className="space-y-3">
+                            <Label>Cliente</Label>
+                            <Input
+                              value={nvoCliente}
+                              onChange={(e) => setNvoCliente(e.target.value)}
+                              placeholder="Nombre del cliente"
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <Label>Estado del pago</Label>
+                            <div className="flex gap-1.5">
+                              {ESTADOS_PAGO.map((ep) => (
+                                <button
+                                  key={ep.valor}
+                                  type="button"
+                                  onClick={() => {
+                                    setNvoEstadoPago(ep.valor)
+                                    if (ep.valor !== "parcial") setNvoMontoPagado("")
+                                  }}
+                                  className={cn(
+                                    "flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all border",
+                                    nvoEstadoPago === ep.valor
+                                      ? ep.color + " border-transparent"
+                                      : "bg-muted text-muted-foreground border-transparent hover:border-border"
+                                  )}
+                                >
+                                  {ep.etiqueta}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          {nvoEstadoPago === "parcial" && (
+                            <div className="space-y-3">
+                              <Label>Monto pagado (USD)</Label>
+                              <Input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                placeholder="0.00"
+                                value={nvoMontoPagado}
+                                onChange={(e) => setNvoMontoPagado(e.target.value)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </DialogContent>
