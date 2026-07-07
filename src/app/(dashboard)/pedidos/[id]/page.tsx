@@ -118,7 +118,7 @@ export default function DetallePedidoPage({
         nombre: nvoNombre,
         cantidad: Number(nvoCantidad) || 0,
         precioUnitario: Number(nvoPrecio) || 0,
-        margen: Number(nvoMargen) || 0,
+        margen: Number(nvoMargen) || undefined,
         envioCliente: Number(nvoEnvio) || undefined,
         clienteNombre: nvoCliente,
         estadoPago: "sin_pagar",
@@ -301,7 +301,7 @@ export default function DetallePedidoPage({
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-3">
-                          <Label>Margen (USD)</Label>
+                          <Label>Descuento (USD)</Label>
                           <Input
                             type="number"
                             min={0}
@@ -312,7 +312,7 @@ export default function DetallePedidoPage({
                           />
                         </div>
                         <div className="space-y-3">
-                          <Label>Envío cliente (USD)</Label>
+                          <Label>Precio de envío (USD)</Label>
                           <Input
                             type="number"
                             min={0}
@@ -321,6 +321,31 @@ export default function DetallePedidoPage({
                             value={nvoEnvio}
                             onChange={(e) => setNvoEnvio(e.target.value)}
                           />
+                        </div>
+                      </div>
+                      <div className="rounded-lg border bg-muted/50 px-4 py-3 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Subtotal</span>
+                          <span>{(Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0)} USD</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Envío</span>
+                          <span>+{Number(nvoEnvio) || 0} USD</span>
+                        </div>
+                        {Number(nvoMargen) > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Descuento</span>
+                            <span className="text-green-600">-{Number(nvoMargen)} USD</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-medium border-t pt-1 mt-1">
+                          <span>Total</span>
+                          <span>
+                            {(Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
+                              (Number(nvoEnvio) || 0) -
+                              (Number(nvoMargen) || 0)}{" "}
+                            USD
+                          </span>
                         </div>
                       </div>
                       <div className="space-y-3">
@@ -388,7 +413,7 @@ export default function DetallePedidoPage({
                       </p>
                       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                         <span>Costo: {formatearMoneda(totalProd)}</span>
-                        <span>Margen: {formatearMoneda(prod.margen || 0)}</span>
+                        <span>Descuento: {formatearMoneda(prod.margen || 0)}</span>
                         <span>Cliente: {formatearMoneda(precioCliente)}</span>
                       </div>
                     </div>
