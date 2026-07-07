@@ -11,33 +11,47 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   Package,
   TrendingUp,
-  DollarSign,
   BarChart3,
   AlertTriangle,
   Plus,
   ArrowRight,
   ShoppingBag,
+  Receipt,
 } from "lucide-react"
-import type { ArticuloTienda } from "@/lib/types"
+import type { ArticuloTienda, Venta } from "@/lib/types"
 import RegistrarVentaDialog from "@/components/RegistrarVentaDialog"
 
 export default function TiendaDashboard() {
   const [articulos, setArticulos] = useState<ArticuloTienda[]>([])
+  const [ventas, setVentas] = useState<Venta[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const q = query(collection(db, "inventario"), orderBy("creadoEn", "desc"))
-    const unsub = onSnapshot(q, (snap) => {
-      setArticulos(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ArticuloTienda)))
-      setLoading(false)
-    })
-    return unsub
+    const unsubArticulos = onSnapshot(
+      query(collection(db, "inventario"), orderBy("creadoEn", "desc")),
+      (snap) => {
+        setArticulos(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ArticuloTienda)))
+        setLoading(false)
+      }
+    )
+
+    const unsubVentas = onSnapshot(
+      query(collection(db, "ventas"), orderBy("creadoEn", "desc")),
+      (snap) => {
+        setVentas(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Venta)))
+      }
+    )
+
+    return () => { unsubArticulos(); unsubVentas() }
   }, [])
 
   const enStock = articulos.filter((a) => a.estado === "en_stock")
   const vendidos = articulos.filter((a) => a.estado === "vendido")
   const apartados = articulos.filter((a) => a.estado === "apartado")
   const stockBajo = enStock.filter((a) => a.cantidad <= 2)
+
+  const porCobrar = ventas.filter((v) => v.estatusPago === "por_pagar")
+  const totalPorCobrar = porCobrar.reduce((s, v) => s + v.precioVenta * v.cantidad, 0)
 
   const totalInvertido = articulos.reduce((s, a) => s + a.costo * a.cantidad, 0)
   const totalVenta = articulos.reduce((s, a) => s + a.precioVenta * a.cantidad, 0)
@@ -46,7 +60,7 @@ export default function TiendaDashboard() {
   const metricas = [
     { icon: Package, label: "En Stock", valor: enStock.length.toString(), color: "text-emerald-600", sub: `${enStock.reduce((s, a) => s + a.cantidad, 0)} unidades` },
     { icon: TrendingUp, label: "Vendidos", valor: vendidos.length.toString(), color: "text-blue-600", sub: `${apartados.length} apartados` },
-    { icon: DollarSign, label: "Invertido", valor: formatearMoneda(totalInvertido), color: "text-yellow-600", sub: `${articulos.length} artículos` },
+    { icon: Receipt, label: "Por Cobrar", valor: porCobrar.length.toString(), color: "text-yellow-600", sub: `${formatearMoneda(totalPorCobrar)}` },
     { icon: BarChart3, label: "Ganancia Potencial", valor: formatearMoneda(gananciaPotencial), color: "text-primary", sub: `${((gananciaPotencial / (totalInvertido || 1)) * 100).toFixed(0)}% margen` },
   ]
 

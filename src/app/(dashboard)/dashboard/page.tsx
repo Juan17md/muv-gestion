@@ -1,20 +1,23 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { pedidosService, productosService } from "@/lib/firebaseServices"
-import { formatearMoneda, formatearFecha, calcularDiasEstancado, ESTADOS_PEDIDO, cn } from "@/lib/utils"
+import { formatearMoneda, formatearFecha, calcularDiasEstancado, ESTADOS_PEDIDO, SIGUIENTE_ESTADO, cn } from "@/lib/utils"
 import { DIAS_ESTANCAMIENTO } from "@/lib/constants"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Package, DollarSign, TrendingUp, Truck, AlertTriangle, Plus, ArrowRight, ShoppingCart } from "lucide-react"
+import { toast } from "sonner"
+import { Package, DollarSign, TrendingUp, Truck, AlertTriangle, Plus, ArrowRight, ShoppingCart, ChevronRight, CirclePlus } from "lucide-react"
 import type { Pedido, ProductoPedido } from "@/lib/types"
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [loading, setLoading] = useState(true)
   const [productosPorPedido, setProductosPorPedido] = useState<Record<string, ProductoPedido[]>>({})
@@ -146,31 +149,60 @@ export default function DashboardPage() {
                 const estadoInfo = ESTADOS_PEDIDO.find((e) => e.valor === pedido.estado)
                 const items = productosPorPedido[pedido.id] || []
                 const totalProductos = items.reduce((s, p) => s + p.cantidad, 0)
+                const sigEstado = SIGUIENTE_ESTADO[pedido.estado]
                 return (
-                  <Link key={pedido.id} href={`/pedidos/${pedido.id}`}>
-                    <Card
-                      className={cn(
-                        "card-glow cursor-pointer hover:shadow-md transition-all duration-300",
-                        "animate-fade-up"
-                      )}
-                      style={{ animationDelay: `${idx * 75}ms` }}
-                    >
-                      <CardContent className="p-5 flex items-center justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <ShoppingCart className="h-4 w-4 text-primary" />
-                            <p className="font-semibold">{pedido.tiendaNombre}</p>
+                  <Card
+                    key={pedido.id}
+                    className={cn("card-glow animate-fade-up")}
+                    style={{ animationDelay: `${idx * 75}ms` }}
+                  >
+                    <CardContent className="p-5">
+                      <div className="flex items-center justify-between">
+                        <Link href={`/pedidos/${pedido.id}`} className="flex-1 min-w-0">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <ShoppingCart className="h-4 w-4 text-primary shrink-0" />
+                              <p className="font-semibold truncate">{pedido.tiendaNombre}</p>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {totalProductos} productos · {formatearFecha(pedido.fechaCreacion)}
+                            </p>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {totalProductos} productos · {formatearFecha(pedido.fechaCreacion)}
-                          </p>
-                        </div>
-                        <Badge className={cn(estadoInfo?.color, "border-0")}>
+                        </Link>
+                        <Badge className={cn(estadoInfo?.color, "border-0 shrink-0 ml-3")}>
                           {estadoInfo?.etiqueta || pedido.estado}
                         </Badge>
-                      </CardContent>
-                    </Card>
-                  </Link>
+                      </div>
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+                        {pedido.estado === "borrador" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 text-xs"
+                            onClick={(e) => { e.preventDefault(); router.push(`/pedidos/${pedido.id}`) }}
+                          >
+                            <CirclePlus className="h-3.5 w-3.5" />
+                            Agregar producto
+                          </Button>
+                        )}
+                        {sigEstado && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="gap-1.5 text-xs ml-auto"
+                            onClick={async (e) => {
+                              e.preventDefault()
+                              await pedidosService.avanzarEstado(pedido.id, sigEstado)
+                              toast.success(`Pedido avanzó a ${ESTADOS_PEDIDO.find((e) => e.valor === sigEstado)?.etiqueta}`)
+                            }}
+                          >
+                            <ChevronRight className="h-3.5 w-3.5" />
+                            Avanzar
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )
               })}
         </div>

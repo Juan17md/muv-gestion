@@ -51,7 +51,6 @@ const ESTADOS_TIMELINE = [
   "transito_usa_ven",
   "entregado_ven",
   "entregado_cliente",
-  "cerrado",
 ]
 
 export default function DetallePedidoPage({
@@ -210,31 +209,31 @@ export default function DetallePedidoPage({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          <div className="flex flex-wrap items-stretch gap-1.5 pb-2">
             {ESTADOS_TIMELINE.map((est, i) => {
               const info = ESTADOS_PEDIDO.find((e) => e.valor === est)
               const completado = i <= idxActual
               return (
-                <div key={est} className="flex items-center gap-2">
+                <div key={est} className="flex items-center gap-1.5 flex-1 min-w-[120px]">
                   <div
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all",
+                      "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all",
                       completado
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground"
                     )}
                   >
                     {completado ? (
-                      <Check className="h-3 w-3" />
+                      <Check className="h-3.5 w-3.5 shrink-0" />
                     ) : (
-                      <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+                      <div className="h-2 w-2 rounded-full bg-muted-foreground/30 shrink-0" />
                     )}
                     {info?.etiqueta}
                   </div>
                   {i < ESTADOS_TIMELINE.length - 1 && (
                     <div
                       className={cn(
-                        "h-px w-4",
+                        "h-px w-3 shrink-0",
                         completado ? "bg-primary" : "bg-border"
                       )}
                     />

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Package, Users, Store, Archive, LayoutPanelTop, LogOut } from "lucide-react"
+import { LayoutDashboard, Package, Users, Store, Archive, LayoutPanelTop, Receipt, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ToggleTema } from "./ToggleTema"
 import { auth } from "@/lib/firebase"
@@ -14,8 +14,6 @@ const secciones = [
     enlaces: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/pedidos", label: "Pedidos", icon: Package },
-      { href: "/clientes", label: "Clientes", icon: Users },
-      { href: "/tiendas", label: "Tiendas", icon: Store },
     ],
   },
   {
@@ -23,6 +21,14 @@ const secciones = [
     enlaces: [
       { href: "/tienda", label: "Panel", icon: LayoutPanelTop },
       { href: "/inventario", label: "Inventario", icon: Archive },
+      { href: "/ventas", label: "Historial", icon: Receipt },
+    ],
+  },
+  {
+    titulo: "Registro",
+    enlaces: [
+      { href: "/clientes", label: "Clientes", icon: Users },
+      { href: "/tiendas", label: "Tiendas", icon: Store },
     ],
   },
 ]

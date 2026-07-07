@@ -77,3 +77,23 @@ export interface ArticuloTienda {
 }
 
 export type EstadoArticulo = "en_stock" | "vendido" | "apartado"
+
+export type MetodoPago = "pago_movil" | "efectivo_usd" | "dolares_digitales"
+export type EstatusPagoVenta = "por_pagar" | "pagado"
+
+export interface Venta {
+  id: string
+  articuloId: string
+  articuloNombre: string
+  articuloCodigo?: string
+  cantidad: number
+  precioVenta: number
+  clienteId?: string
+  clienteNombre: string
+  clienteWhatsapp?: string
+  metodoPago: MetodoPago
+  fechaPago: Timestamp
+  estatusPago: EstatusPagoVenta
+  creadoEn: Timestamp
+  actualizadoEn: Timestamp
+}

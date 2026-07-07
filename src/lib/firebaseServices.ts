@@ -13,7 +13,7 @@ import {
   type Timestamp,
 } from "firebase/firestore"
 import { db } from "./firebase"
-import type { Cliente, Tienda, Pedido, ProductoPedido, ArticuloTienda } from "./types"
+import type { Cliente, Tienda, Pedido, ProductoPedido, ArticuloTienda, Venta } from "./types"
 
 function ts() {
   return serverTimestamp() as Timestamp
@@ -169,6 +169,24 @@ export const inventarioService = {
 
   async eliminar(id: string) {
     return deleteDoc(doc(db, "inventario", id))
+  },
+}
+
+export const ventasService = {
+  ref: collection(db, "ventas"),
+
+  async listar(): Promise<Venta[]> {
+    const q = query(this.ref, orderBy("creadoEn", "desc"))
+    const snap = await getDocs(q)
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Venta))
+  },
+
+  async crear(data: Omit<Venta, "id" | "creadoEn" | "actualizadoEn">) {
+    return addDoc(this.ref, {
+      ...data,
+      creadoEn: ts(),
+      actualizadoEn: ts(),
+    })
   },
 }
 

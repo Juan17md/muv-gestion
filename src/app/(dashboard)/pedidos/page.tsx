@@ -5,11 +5,22 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import { pedidosService } from "@/lib/firebaseServices"
 import { formatearMoneda, formatearFecha, ESTADOS_PEDIDO, cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Table,
   TableBody,
@@ -18,17 +29,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Plus, Search, Package, ArrowRight } from "lucide-react"
+import { toast } from "sonner"
+import { Plus, Search, Package, Pencil, Trash2 } from "lucide-react"
 import type { Pedido } from "@/lib/types"
 
 const FILTROS_ESTADO = [
   { valor: "todos", etiqueta: "Todos" },
   { valor: "borrador", etiqueta: "Borrador" },
   { valor: "abierto", etiqueta: "Abierto" },
-  { valor: "cerrado", etiqueta: "Cerrado" },
+
 ]
 
-const ESTADOS_ABIERTO = ["comprado", "transito_china_usa", "casillero_usa", "transito_usa_ven", "entregado_ven", "entregado_cliente"]
+const ESTADOS_ABIERTO = ["comprado", "transito_china_usa", "casillero_usa", "transito_usa_ven", "entregado_ven"]
 
 export default function PedidosPage() {
   const router = useRouter()
@@ -36,6 +48,7 @@ export default function PedidosPage() {
   const [loading, setLoading] = useState(true)
   const [filtroEstado, setFiltroEstado] = useState("todos")
   const [busqueda, setBusqueda] = useState("")
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null)
 
   useEffect(() => {
     const q = query(collection(db, "pedidos"), orderBy("fechaCreacion", "desc"))
@@ -55,6 +68,13 @@ export default function PedidosPage() {
     }
     return true
   })
+
+  const confirmarEliminar = async () => {
+    if (!eliminandoId) return
+    await pedidosService.eliminar(eliminandoId)
+    toast.success("Pedido eliminado")
+    setEliminandoId(null)
+  }
 
   return (
     <div className="page-container space-y-8 animate-fade-in">
@@ -99,7 +119,7 @@ export default function PedidosPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card">
+        <div className="rounded-xl border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -107,7 +127,7 @@ export default function PedidosPage() {
               <TableHead>Fecha</TableHead>
               <TableHead>Monto</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead className="w-10"></TableHead>
+              <TableHead className="w-24">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -118,7 +138,7 @@ export default function PedidosPage() {
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-16" /></TableCell>
                   </TableRow>
                 ))
               : filtrados.length === 0 ? (
@@ -152,7 +172,14 @@ export default function PedidosPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon-sm" onClick={() => router.push(`/pedidos/${pedido.id}`)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setEliminandoId(pedido.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
@@ -160,6 +187,23 @@ export default function PedidosPage() {
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={!!eliminandoId} onOpenChange={(open) => !open && setEliminandoId(null)}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar pedido</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás segura de eliminar este pedido? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEliminandoId(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmarEliminar}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

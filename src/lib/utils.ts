@@ -36,7 +36,7 @@ export const ESTADOS_PEDIDO = [
   { valor: "casillero_usa", etiqueta: "En Casillero (USA)", color: "bg-cyan-100 text-cyan-700" },
   { valor: "transito_usa_ven", etiqueta: "En Tránsito (US→VE)", color: "bg-violet-100 text-violet-700" },
   { valor: "entregado_ven", etiqueta: "Entregado VEN", color: "bg-amber-100 text-amber-700" },
-  { valor: "entregado_cliente", etiqueta: "Entregado Cliente", color: "bg-emerald-100 text-emerald-700" },
+  { valor: "entregado_cliente", etiqueta: "Retirado", color: "bg-emerald-100 text-emerald-700" },
   { valor: "cerrado", etiqueta: "Cerrado", color: "bg-muted text-muted-foreground" },
 ] as const
 
@@ -50,6 +50,17 @@ export const ESTADOS_ARTICULO = [
   { valor: "en_stock", etiqueta: "En Stock", color: "bg-emerald-100 text-emerald-700" },
   { valor: "vendido", etiqueta: "Vendido", color: "bg-blue-100 text-blue-700" },
   { valor: "apartado", etiqueta: "Apartado", color: "bg-yellow-100 text-yellow-700" },
+] as const
+
+export const METODOS_PAGO = [
+  { valor: "pago_movil", etiqueta: "Pago Móvil" },
+  { valor: "efectivo_usd", etiqueta: "Efectivo $" },
+  { valor: "dolares_digitales", etiqueta: "Dólares Digitales" },
+] as const
+
+export const ESTATUS_PAGO_VENTA = [
+  { valor: "por_pagar", etiqueta: "Por pagar" },
+  { valor: "pagado", etiqueta: "Pagado" },
 ] as const
 
 export const SIGUIENTE_ESTADO: Record<string, string> = {
