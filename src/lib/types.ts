@@ -22,6 +22,7 @@ export interface ProductoPedido {
   nombre: string
   cantidad: number
   precioUnitario: number
+  precioVenta?: number
   margen?: number
   envioCliente?: number
   clienteRef?: string

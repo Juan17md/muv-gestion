@@ -71,6 +71,7 @@ export default function DetallePedidoPage({
   const [nvoMargen, setNvoMargen] = useState("")
   const [nvoCliente, setNvoCliente] = useState("")
   const [nvoEnvio, setNvoEnvio] = useState("")
+  const [nvoPrecioVenta, setNvoPrecioVenta] = useState("")
   const [creando, setCreando] = useState(false)
 
   useEffect(() => {
@@ -112,14 +113,29 @@ export default function DetallePedidoPage({
       toast.error("Nombre del producto y cliente son requeridos")
       return
     }
+
+    const cantidad = Number(nvoCantidad) || 0
+    const precioUnitario = Number(nvoPrecio) || 0
+    const envio = Number(nvoEnvio) || 0
+    const margen = Number(nvoMargen) || 0
+    const precioPorArticulo = cantidad > 0 ? (cantidad * precioUnitario + envio - margen) / cantidad : 0
+    const precioVenta = nvoPrecioVenta ? Number(nvoPrecioVenta) : undefined
+
+    if (precioVenta !== undefined && precioVenta < precioPorArticulo) {
+      toast.error("El precio de venta no puede ser menor al precio por artículo")
+      setCreando(false)
+      return
+    }
+
     setCreando(true)
     try {
       await productosService.agregar(id, {
         nombre: nvoNombre,
-        cantidad: Number(nvoCantidad) || 0,
-        precioUnitario: Number(nvoPrecio) || 0,
-        margen: Number(nvoMargen) || undefined,
-        envioCliente: Number(nvoEnvio) || undefined,
+        cantidad,
+        precioUnitario,
+        precioVenta,
+        margen: margen || undefined,
+        envioCliente: envio || undefined,
         clienteNombre: nvoCliente,
         estadoPago: "sin_pagar",
       })
@@ -129,6 +145,7 @@ export default function DetallePedidoPage({
       setNvoMargen("")
       setNvoCliente("")
       setNvoEnvio("")
+      setNvoPrecioVenta("")
       setDialogoAbierto(false)
       toast.success("Producto agregado")
     } catch {
@@ -347,7 +364,39 @@ export default function DetallePedidoPage({
                             USD
                           </span>
                         </div>
+                        {Number(nvoCantidad) > 0 && (
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>Precio por artículo</span>
+                            <span>
+                              {(
+                                ((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
+                                  (Number(nvoEnvio) || 0) -
+                                  (Number(nvoMargen) || 0)) /
+                                (Number(nvoCantidad) || 1)
+                              ).toFixed(2)}{" "}
+                              USD
+                            </span>
+                          </div>
+                        )}
                       </div>
+                      {Number(nvoCantidad) > 0 && (
+                        <div className="space-y-3">
+                          <Label>Precio de venta</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min={(
+                              ((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
+                                (Number(nvoEnvio) || 0) -
+                                (Number(nvoMargen) || 0)) /
+                              (Number(nvoCantidad) || 1)
+                            ).toFixed(2)}
+                            placeholder="Precio de venta"
+                            value={nvoPrecioVenta}
+                            onChange={(e) => setNvoPrecioVenta(e.target.value)}
+                          />
+                        </div>
+                      )}
                       <div className="space-y-3">
                         <Label>Cliente</Label>
                         <Input
