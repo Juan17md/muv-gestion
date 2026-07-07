@@ -695,9 +695,11 @@ export default function DetallePedidoPage({
                         </TableCell>
                         <TableCell className="text-right font-medium">{formatearMoneda(totalProd)}</TableCell>
                         <TableCell className="text-right text-green-600">
-                          {!esInventario
-                            ? formatearMoneda(prod.margen ?? 0)
-                            : "-"}
+                          {prod.margen != null
+                            ? formatearMoneda(prod.margen)
+                            : !esInventario
+                              ? formatearMoneda(0)
+                              : "-"}
                         </TableCell>
                         <TableCell className="text-right">
                           {prod.envioCliente ? formatearMoneda(prod.envioCliente) : "-"}
