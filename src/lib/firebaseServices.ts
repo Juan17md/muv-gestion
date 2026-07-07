@@ -13,7 +13,7 @@ import {
   type Timestamp,
 } from "firebase/firestore"
 import { db } from "./firebase"
-import type { Cliente, Tienda, Pedido, ProductoPedido, ArticuloTienda, Venta } from "./types"
+import type { Cliente, Tienda, Pedido, ProductoPedido, ArticuloTienda, Venta, EstadoPedido } from "./types"
 
 function ts() {
   return serverTimestamp() as Timestamp
@@ -111,10 +111,9 @@ export const pedidosService = {
     return deleteDoc(doc(db, "pedidos", id))
   },
 
-  async avanzarEstado(id: string, nuevoEstado: string) {
+  async avanzarEstado(id: string, nuevoEstado: EstadoPedido) {
     const updates: Partial<Pedido> = { estado: nuevoEstado, actualizadoEn: ts() }
     if (nuevoEstado === "comprado") updates.fechaCompra = ts()
-    if (nuevoEstado === "cerrado") updates.fechaCierre = ts()
     return updateDoc(doc(db, "pedidos", id), updates)
   },
 }
@@ -191,6 +190,10 @@ export const ventasService = {
 }
 
 export async function obtenerPedidosPorCliente(clienteId: string): Promise<Pedido[]> {
+  const clienteSnap = await getDoc(doc(db, "clientes", clienteId))
+  if (!clienteSnap.exists()) return []
+  const cliente = { id: clienteSnap.id, ...clienteSnap.data() } as Cliente
+
   const q = query(collection(db, "pedidos"), orderBy("fechaCreacion", "desc"))
   const snap = await getDocs(q)
   const todos = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Pedido))
@@ -198,7 +201,7 @@ export async function obtenerPedidosPorCliente(clienteId: string): Promise<Pedid
   const conProductos = await Promise.all(
     todos.map(async (pedido) => {
       const prods = await productosService.listar(pedido.id)
-      const tieneCliente = prods.some((p) => p.clienteRef === clienteId || p.clienteNombre === clienteId)
+      const tieneCliente = prods.some((p) => p.clienteRef === clienteId || p.clienteNombre === cliente.nombre)
       return tieneCliente ? pedido : null
     })
   )

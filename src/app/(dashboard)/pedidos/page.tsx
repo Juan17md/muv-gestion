@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/table"
 import { toast } from "sonner"
 import { Plus, Search, Package, Pencil, Trash2 } from "lucide-react"
-import type { Pedido } from "@/lib/types"
+import type { Pedido, EstadoPedido } from "@/lib/types"
 
 const FILTROS_ESTADO = [
   { valor: "todos", etiqueta: "Todos" },
@@ -40,7 +40,7 @@ const FILTROS_ESTADO = [
 
 ]
 
-const ESTADOS_ABIERTO = ["comprado", "transito_china_usa", "casillero_usa", "transito_usa_ven", "entregado_ven"]
+const ESTADOS_ABIERTO: EstadoPedido[] = ["comprado", "transito_china_usa", "casillero_usa", "transito_usa_ven", "entregado_ven"]
 
 export default function PedidosPage() {
   const router = useRouter()

@@ -1,11 +1,12 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Regla global: Solo permite acceso si el usuario está autenticado.
-    // IMPORTANTE: Para restringir a un único administrador, cambia esta línea por:
-    // allow read, write: if request.auth != null && request.auth.uid == 'EL_UID_DE_LA_DUEÑA';
+    // Solo permite acceso si el usuario está autenticado y su UID coincide
+    // con el administrador configurado en NEXT_PUBLIC_AUTHORIZED_UID.
+    // Cambia 'EL_UID_DE_LA_DUEÑA' por el UID real antes de desplegar.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null
+        && request.auth.uid == 'EL_UID_DE_LA_DUEÑA';
     }
   }
 }

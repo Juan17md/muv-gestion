@@ -123,6 +123,7 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
         metodoPago,
         fechaPago: Timestamp.fromDate(fechaPago),
         estatusPago,
+        estatusEntrega: "por_entregar",
       }
       if (articulo.codigo) datosVenta.articuloCodigo = articulo.codigo
       if (clienteExistente?.id) datosVenta.clienteId = clienteExistente.id
@@ -132,10 +133,13 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
         datosVenta as unknown as Omit<Venta, "id" | "creadoEn" | "actualizadoEn">
       )
 
-      await updateDoc(doc(db, "inventario", articulo.id), {
-        cantidad: Math.max(0, articulo.cantidad - cantidad),
+      const nuevaCantidad = Math.max(0, articulo.cantidad - cantidad)
+      const updateData: Record<string, unknown> = {
+        cantidad: nuevaCantidad,
         actualizadoEn: serverTimestamp(),
-      })
+      }
+      if (nuevaCantidad === 0) updateData.estado = "vendido"
+      await updateDoc(doc(db, "inventario", articulo.id), updateData)
 
       toast.success("Venta registrada")
       setOpen(false)

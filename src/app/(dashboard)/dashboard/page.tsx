@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { Package, DollarSign, TrendingUp, Truck, AlertTriangle, Plus, ArrowRight, ShoppingCart, ChevronRight, CirclePlus } from "lucide-react"
-import type { Pedido, ProductoPedido } from "@/lib/types"
+import type { Pedido, ProductoPedido, EstadoPedido } from "@/lib/types"
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -192,7 +192,11 @@ export default function DashboardPage() {
                             className="gap-1.5 text-xs ml-auto"
                             onClick={async (e) => {
                               e.preventDefault()
-                              await pedidosService.avanzarEstado(pedido.id, sigEstado)
+                              if (sigEstado === "entregado_cliente") {
+                                router.push(`/pedidos/${pedido.id}`)
+                                return
+                              }
+                              await pedidosService.avanzarEstado(pedido.id, sigEstado as EstadoPedido)
                               toast.success(`Pedido avanzó a ${ESTADOS_PEDIDO.find((e) => e.valor === sigEstado)?.etiqueta}`)
                             }}
                           >

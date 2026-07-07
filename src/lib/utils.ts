@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import type { EstadoPedido } from "./types"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -68,7 +69,7 @@ export const ESTATUS_ENTREGA = [
   { valor: "entregado", etiqueta: "Entregado" },
 ] as const
 
-export const SIGUIENTE_ESTADO: Record<string, string> = {
+export const SIGUIENTE_ESTADO: Partial<Record<EstadoPedido, EstadoPedido>> = {
   borrador: "comprado",
   comprado: "transito_china_usa",
   transito_china_usa: "casillero_usa",

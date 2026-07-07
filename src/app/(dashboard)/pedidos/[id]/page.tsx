@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
-import { doc, onSnapshot, addDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore"
+import { doc, onSnapshot, collection, getDocs, query, orderBy } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { pedidosService, productosService, ventasService, inventarioService } from "@/lib/firebaseServices"
 import {
@@ -54,9 +54,9 @@ import {
   PackagePlus,
 } from "lucide-react"
 import Link from "next/link"
-import type { Pedido, ProductoPedido, ArticuloTienda } from "@/lib/types"
+import type { Pedido, ProductoPedido, ArticuloTienda, EstadoPedido } from "@/lib/types"
 
-const ESTADOS_TIMELINE = [
+const ESTADOS_TIMELINE: EstadoPedido[] = [
   "borrador",
   "comprado",
   "transito_china_usa",
@@ -88,6 +88,7 @@ export default function DetallePedidoPage({
   const [nvoTipo, setNvoTipo] = useState<"cliente" | "inventario">("cliente")
   const [creando, setCreando] = useState(false)
   const [retiroDialogoAbierto, setRetiroDialogoAbierto] = useState(false)
+  const [whatsappMap, setWhatsappMap] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const unsubPedido = onSnapshot(doc(db, "pedidos", id), (snap) => {
@@ -105,6 +106,16 @@ export default function DetallePedidoPage({
       unsubPedido()
     }
   }, [id, router])
+
+  useEffect(() => {
+    getDocs(query(collection(db, "clientes"), orderBy("nombre"))).then((snap) => {
+      const mapa: Record<string, string> = {}
+      snap.docs.forEach((d) => {
+        mapa[d.id] = d.data().whatsapp || ""
+      })
+      setWhatsappMap(mapa)
+    })
+  }, [])
 
   const avanzarEstado = async () => {
     if (!pedido) return
@@ -142,15 +153,16 @@ export default function DetallePedidoPage({
             estado: "en_stock",
           })
         } else {
-          await addDoc(collection(db, "ventas"), {
+          const ventaData: Record<string, unknown> = {
             articuloNombre: prod.nombre,
             cantidad: prod.cantidad,
             precioVenta: prod.precioVenta || prod.precioUnitario * prod.cantidad,
             clienteNombre: prod.clienteNombre || "",
             estatusEntrega: "por_entregar",
-            creadoEn: serverTimestamp(),
-            actualizadoEn: serverTimestamp(),
-          })
+            estatusPago: "por_pagar",
+          }
+          if (prod.clienteRef) ventaData.clienteId = prod.clienteRef
+          await ventasService.crear(ventaData as Parameters<typeof ventasService.crear>[0])
         }
 
         if (prod.id) {
@@ -585,13 +597,16 @@ export default function DetallePedidoPage({
 
                     {!prod.retirado && (
                       <div className="flex items-center gap-2">
-                        {prod.clienteRef || prod.clienteNombre ? (
-                          <Button variant="ghost" size="icon-sm" asChild>
-                            <a href={`https://wa.me/`} target="_blank" rel="noopener noreferrer">
-                              <MessageCircle className="h-4 w-4" />
-                            </a>
-                          </Button>
-                        ) : null}
+                        {(() => {
+                          const whatsapp = prod.clienteRef ? whatsappMap[prod.clienteRef] : ""
+                          return whatsapp ? (
+                            <Button variant="ghost" size="icon-sm" asChild>
+                              <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer">
+                                <MessageCircle className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          ) : null
+                        })()}
 
                         <div className="flex gap-1">
                           {ESTADOS_PAGO.map((ep) => (

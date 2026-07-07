@@ -38,7 +38,7 @@ export interface Pedido {
   id: string
   tiendaRef: string
   tiendaNombre: string
-  estado: string
+  estado: EstadoPedido
   ubicacion: string
   costoEnvioTotal?: number
   montoTotal?: number
