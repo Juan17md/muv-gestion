@@ -501,7 +501,7 @@ export default function DetallePedidoPage({
                           />
                         </div>
                         <div className="space-y-3">
-                          <Label>Precio de envío (USD)</Label>
+                          <Label>{nvoTipo === "inventario" ? "Otros (USD)" : "Precio de envío (USD)"}</Label>
                           <Input
                             type="number"
                             min={0}
