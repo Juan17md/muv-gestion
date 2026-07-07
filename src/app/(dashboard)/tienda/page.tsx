@@ -4,7 +4,16 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { formatearMoneda, cn } from "@/lib/utils"
+import { formatearMoneda, formatearFecha, ESTATUS_PAGO_VENTA, ESTATUS_ENTREGA, ESTADOS_ARTICULO, cn } from "@/lib/utils"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -15,8 +24,8 @@ import {
   AlertTriangle,
   Plus,
   ArrowRight,
-  ShoppingBag,
   Receipt,
+  MessageCircle,
 } from "lucide-react"
 import type { ArticuloTienda, Venta } from "@/lib/types"
 import RegistrarVentaDialog from "@/components/RegistrarVentaDialog"
@@ -63,8 +72,6 @@ export default function TiendaDashboard() {
     { icon: Receipt, label: "Por Cobrar", valor: porCobrar.length.toString(), color: "text-yellow-600", sub: `${formatearMoneda(totalPorCobrar)}` },
     { icon: BarChart3, label: "Ganancia Potencial", valor: formatearMoneda(gananciaPotencial), color: "text-primary", sub: `${((gananciaPotencial / (totalInvertido || 1)) * 100).toFixed(0)}% margen` },
   ]
-
-  const recientes = articulos.slice(0, 5)
 
   return (
     <div className="page-container space-y-10 animate-fade-in">
@@ -126,6 +133,86 @@ export default function TiendaDashboard() {
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold tracking-tight">Últimas Ventas</h2>
+          <Link
+            href="/ventas"
+            className="text-sm text-primary font-medium hover:underline flex items-center gap-1"
+          >
+            Ver todas <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+
+        <div className="rounded-xl border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Artículo</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Cant.</TableHead>
+                <TableHead>Monto</TableHead>
+                <TableHead>Pago</TableHead>
+                <TableHead>Entrega</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ventas.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center">
+                    <Receipt className="h-6 w-6 mx-auto text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">No hay ventas registradas</p>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                ventas.slice(0, 10).map((venta) => {
+                  const estatusPago = ESTATUS_PAGO_VENTA.find((e) => e.valor === venta.estatusPago)
+                  const entregaInfo = ESTATUS_ENTREGA.find((e) => e.valor === venta.estatusEntrega)
+                  return (
+                    <TableRow key={venta.id}>
+                      <TableCell className="font-medium">{venta.articuloNombre}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">{venta.clienteNombre}</span>
+                          {venta.clienteWhatsapp && (
+                            <button
+                              onClick={() => window.open(`https://wa.me/${venta.clienteWhatsapp}`, "_blank")}
+                              className="text-primary hover:text-primary/80 transition-colors"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{venta.cantidad}</TableCell>
+                      <TableCell className="text-emerald-600 font-medium">
+                        {formatearMoneda(venta.precioVenta * venta.cantidad)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={cn(
+                          "border-0 text-[10px]",
+                          venta.estatusPago === "pagado" ? "bg-emerald-100 text-emerald-700" : "bg-yellow-100 text-yellow-700"
+                        )}>
+                          {estatusPago?.etiqueta || "Por pagar"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={cn(
+                          "border-0 text-[10px]",
+                          venta.estatusEntrega === "entregado" ? "bg-emerald-100 text-emerald-700" : "bg-yellow-100 text-yellow-700"
+                        )}>
+                          {entregaInfo?.etiqueta || "Por entregar"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold tracking-tight">Artículos Recientes</h2>
           <Link
             href="/inventario"
@@ -135,44 +222,45 @@ export default function TiendaDashboard() {
           </Link>
         </div>
 
-        <div className="grid gap-3">
-          {loading
-            ? Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i} className="card-glow">
-                  <CardContent className="p-5">
-                    <Skeleton className="h-5 w-40 mb-2" />
-                    <Skeleton className="h-4 w-24" />
-                  </CardContent>
-                </Card>
-              ))
-            : recientes.map((a, i) => (
-                <Card key={a.id} className={cn("card-glow animate-fade-up")} style={{ animationDelay: `${i * 75}ms` }}>
-                  <CardContent className="p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2.5 rounded-xl bg-primary/10">
-                        <ShoppingBag className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <p className="font-semibold">{a.nombre}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {formatearMoneda(a.precioVenta)} · Stock: {a.cantidad}
-                          {a.clienteNombre && ` · ${a.clienteNombre}`}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={cn(
-                        "text-xs font-medium px-2 py-1 rounded-full",
-                        a.estado === "en_stock" && "bg-emerald-100 text-emerald-700",
-                        a.estado === "vendido" && "bg-blue-100 text-blue-700",
-                        a.estado === "apartado" && "bg-yellow-100 text-yellow-700"
-                      )}
-                    >
-                      {a.estado === "en_stock" ? "Stock" : a.estado === "vendido" ? "Vendido" : "Apartado"}
-                    </span>
-                  </CardContent>
-                </Card>
-              ))}
+        <div className="rounded-xl border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Artículo</TableHead>
+                <TableHead>Stock</TableHead>
+                <TableHead>Costo</TableHead>
+                <TableHead>Venta</TableHead>
+                <TableHead>Estado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {articulos.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-32 text-center">
+                    <Package className="h-6 w-6 mx-auto text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">No hay artículos en el inventario</p>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                articulos.slice(0, 10).map((articulo) => {
+                  const estadoInfo = ESTADOS_ARTICULO.find((e) => e.valor === articulo.estado)
+                  return (
+                    <TableRow key={articulo.id}>
+                      <TableCell className="font-medium">{articulo.nombre}</TableCell>
+                      <TableCell>{articulo.cantidad}</TableCell>
+                      <TableCell className="text-amber-600 font-medium">{formatearMoneda(articulo.costo)}</TableCell>
+                      <TableCell className="text-emerald-600 font-medium">{formatearMoneda(articulo.precioVenta)}</TableCell>
+                      <TableCell>
+                        <Badge className={cn(estadoInfo?.color, "border-0 text-[10px]")}>
+                          {estadoInfo?.etiqueta || articulo.estado}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>

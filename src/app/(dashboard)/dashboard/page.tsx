@@ -6,29 +6,19 @@ import Link from "next/link"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { pedidosService, productosService } from "@/lib/firebaseServices"
-import { formatearMoneda, formatearFecha, calcularDiasEstancado, ESTADOS_PEDIDO, SIGUIENTE_ESTADO, METODOS_PAGO, ESTATUS_PAGO_VENTA, ESTATUS_ENTREGA, ESTADOS_ARTICULO, cn } from "@/lib/utils"
+import { formatearMoneda, formatearFecha, calcularDiasEstancado, ESTADOS_PEDIDO, SIGUIENTE_ESTADO, cn } from "@/lib/utils"
 import { DIAS_ESTANCAMIENTO } from "@/lib/constants"
 import { Card, CardContent } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
-import { Package, DollarSign, TrendingUp, Truck, AlertTriangle, Plus, ArrowRight, ShoppingCart, ChevronRight, CirclePlus, Receipt, MessageCircle } from "lucide-react"
-import type { Pedido, ProductoPedido, EstadoPedido, Venta, ArticuloTienda } from "@/lib/types"
+import { Package, DollarSign, TrendingUp, Truck, AlertTriangle, Plus, ArrowRight, ShoppingCart, ChevronRight, CirclePlus } from "lucide-react"
+import type { Pedido, ProductoPedido, EstadoPedido } from "@/lib/types"
 
 export default function DashboardPage() {
   const router = useRouter()
   const [pedidos, setPedidos] = useState<Pedido[]>([])
-  const [ventas, setVentas] = useState<Venta[]>([])
-  const [articulos, setArticulos] = useState<ArticuloTienda[]>([])
   const [loading, setLoading] = useState(true)
   const [productosPorPedido, setProductosPorPedido] = useState<Record<string, ProductoPedido[]>>({})
 
@@ -46,22 +36,6 @@ export default function DashboardPage() {
         })
       )
       setProductosPorPedido(prodsMap)
-    })
-    return unsub
-  }, [])
-
-  useEffect(() => {
-    const q = query(collection(db, "ventas"), orderBy("creadoEn", "desc"))
-    const unsub = onSnapshot(q, (snap) => {
-      setVentas(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Venta)))
-    })
-    return unsub
-  }, [])
-
-  useEffect(() => {
-    const q = query(collection(db, "inventario"), orderBy("creadoEn", "desc"))
-    const unsub = onSnapshot(q, (snap) => {
-      setArticulos(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ArticuloTienda)))
     })
     return unsub
   }, [])
@@ -235,139 +209,6 @@ export default function DashboardPage() {
                   </Card>
                 )
               })}
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold tracking-tight">Últimas Ventas</h2>
-          <Link
-            href="/ventas"
-            className="text-sm text-primary font-medium hover:underline flex items-center gap-1"
-          >
-            Ver todas <ArrowRight className="h-3 w-3" />
-          </Link>
-        </div>
-
-        <div className="rounded-xl border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Artículo</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Cant.</TableHead>
-                <TableHead>Monto</TableHead>
-                <TableHead>Pago</TableHead>
-                <TableHead>Entrega</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ventas.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
-                    <Receipt className="h-6 w-6 mx-auto text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">No hay ventas registradas</p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                ventas.slice(0, 10).map((venta) => {
-                  const estatusPago = ESTATUS_PAGO_VENTA.find((e) => e.valor === venta.estatusPago)
-                  const entregaInfo = ESTATUS_ENTREGA.find((e) => e.valor === venta.estatusEntrega)
-                  return (
-                    <TableRow key={venta.id}>
-                      <TableCell className="font-medium">{venta.articuloNombre}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{venta.clienteNombre}</span>
-                          {venta.clienteWhatsapp && (
-                            <button
-                              onClick={() => window.open(`https://wa.me/${venta.clienteWhatsapp}`, "_blank")}
-                              className="text-primary hover:text-primary/80 transition-colors"
-                            >
-                              <MessageCircle className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{venta.cantidad}</TableCell>
-                      <TableCell className="text-emerald-600 font-medium">
-                        {formatearMoneda(venta.precioVenta * venta.cantidad)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={cn(
-                          "border-0 text-[10px]",
-                          venta.estatusPago === "pagado" ? "bg-emerald-100 text-emerald-700" : "bg-yellow-100 text-yellow-700"
-                        )}>
-                          {estatusPago?.etiqueta || "Por pagar"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={cn(
-                          "border-0 text-[10px]",
-                          venta.estatusEntrega === "entregado" ? "bg-emerald-100 text-emerald-700" : "bg-yellow-100 text-yellow-700"
-                        )}>
-                          {entregaInfo?.etiqueta || "Por entregar"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold tracking-tight">Artículos Recientes</h2>
-          <Link
-            href="/inventario"
-            className="text-sm text-primary font-medium hover:underline flex items-center gap-1"
-          >
-            Ver todos <ArrowRight className="h-3 w-3" />
-          </Link>
-        </div>
-
-        <div className="rounded-xl border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Artículo</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Costo</TableHead>
-                <TableHead>Venta</TableHead>
-                <TableHead>Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {articulos.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-32 text-center">
-                    <Package className="h-6 w-6 mx-auto text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">No hay artículos en el inventario</p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                articulos.slice(0, 10).map((articulo) => {
-                  const estadoInfo = ESTADOS_ARTICULO.find((e) => e.valor === articulo.estado)
-                  return (
-                    <TableRow key={articulo.id}>
-                      <TableCell className="font-medium">{articulo.nombre}</TableCell>
-                      <TableCell>{articulo.cantidad}</TableCell>
-                      <TableCell className="text-amber-600 font-medium">{formatearMoneda(articulo.costo)}</TableCell>
-                      <TableCell className="text-emerald-600 font-medium">{formatearMoneda(articulo.precioVenta)}</TableCell>
-                      <TableCell>
-                        <Badge className={cn(estadoInfo?.color, "border-0 text-[10px]")}>
-                          {estadoInfo?.etiqueta || articulo.estado}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
         </div>
       </div>
     </div>
