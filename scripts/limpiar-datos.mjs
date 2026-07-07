@@ -40,26 +40,24 @@ async function main() {
     process.exit(1)
   }
 
-  const confirmation = await preguntar("\nEscribe 'BORRAR' para confirmar: ")
-  if (confirmation !== "BORRAR") {
+  const confirmacion = await preguntar("\nEscribe 'BORRAR' para confirmar: ")
+  if (confirmacion !== "BORRAR") {
     console.log("Operación cancelada.")
     process.exit(0)
   }
 
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = rutaJson
+  const serviceAccount = JSON.parse(readFileSync(rutaJson, "utf-8"))
 
-  const { getFirestore, Timestamp } = await import("firebase-admin/firestore")
   const admin = await import("firebase-admin")
 
   if (!admin.apps.length) {
     admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
+      credential: admin.credential.cert(serviceAccount),
     })
   }
 
-  const db = getFirestore()
-  const info = JSON.parse(readFileSync(rutaJson, "utf-8"))
-  console.log(`\nConectado a: ${info.project_id}\n`)
+  const db = admin.firestore()
+  console.log(`\nConectado a: ${serviceAccount.project_id}\n`)
 
   async function borrarColeccion(nombre) {
     const snapshot = await db.collection(nombre).get()
