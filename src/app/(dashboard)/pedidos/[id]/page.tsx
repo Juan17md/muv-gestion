@@ -267,70 +267,70 @@ export default function DetallePedidoPage({
                       Agrega un producto al pedido
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-3">
-                      <Label>Nombre del producto</Label>
-                      <Input
-                        value={nvoNombre}
-                        onChange={(e) => setNvoNombre(e.target.value)}
-                        placeholder="Ej: Funda para celular"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-4 py-4">
                       <div className="space-y-3">
-                        <Label>Cantidad</Label>
+                        <Label>Nombre del producto</Label>
                         <Input
-                          type="number"
-                          min={1}
-                          placeholder="1"
-                          value={nvoCantidad}
-                          onChange={(e) => setNvoCantidad(e.target.value)}
+                          value={nvoNombre}
+                          onChange={(e) => setNvoNombre(e.target.value)}
+                          placeholder="Ej: Funda para celular"
                         />
                       </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <Label>Cantidad</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            placeholder="1"
+                            value={nvoCantidad}
+                            onChange={(e) => setNvoCantidad(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-3">
+                          <Label>Precio unitario (USD)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            placeholder="0.00"
+                            value={nvoPrecio}
+                            onChange={(e) => setNvoPrecio(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <Label>Margen (USD)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            placeholder="0.00"
+                            value={nvoMargen}
+                            onChange={(e) => setNvoMargen(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-3">
+                          <Label>Envío cliente (USD)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            placeholder="0.00"
+                            value={nvoEnvio}
+                            onChange={(e) => setNvoEnvio(e.target.value)}
+                          />
+                        </div>
+                      </div>
                       <div className="space-y-3">
-                        <Label>Precio unitario (USD)</Label>
+                        <Label>Cliente</Label>
                         <Input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          placeholder="0.00"
-                          value={nvoPrecio}
-                          onChange={(e) => setNvoPrecio(e.target.value)}
+                          value={nvoCliente}
+                          onChange={(e) => setNvoCliente(e.target.value)}
+                          placeholder="Nombre del cliente"
                         />
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <Label>Margen (USD)</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          placeholder="0.00"
-                          value={nvoMargen}
-                          onChange={(e) => setNvoMargen(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-3">
-                        <Label>Envío cliente (USD)</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          placeholder="0.00"
-                          value={nvoEnvio}
-                          onChange={(e) => setNvoEnvio(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <Label>Cliente</Label>
-                      <Input
-                        value={nvoCliente}
-                        onChange={(e) => setNvoCliente(e.target.value)}
-                        placeholder="Nombre del cliente"
-                      />
-                    </div>
                     <Button
                       onClick={agregarProducto}
                       className="w-full"

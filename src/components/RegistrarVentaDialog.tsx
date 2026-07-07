@@ -166,7 +166,7 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label>Artículo</Label>
             {articulosEnStock.length === 0 ? (
               <p className="text-sm text-muted-foreground py-2">No hay artículos en stock.</p>
@@ -209,7 +209,7 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="w-20 space-y-2">
+                <div className="w-20 space-y-3">
                   <Label className="text-xs">Cant.</Label>
                   <Input type="number" min={1} placeholder="1" value={cantidadVenta} onChange={(e) => setCantidadVenta(e.target.value)} />
                 </div>
@@ -217,7 +217,7 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
             )}
           </div>
 
-          <div className="space-y-2" ref={clienteRef}>
+          <div className="space-y-3" ref={clienteRef}>
             <Label>Cliente</Label>
             <Input
               placeholder="Nombre del cliente"
@@ -241,7 +241,7 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
               </div>
             )}
             {!clientes.find((c) => c.nombre === clienteNombre.trim()) && clienteNombre.trim() && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label className="text-xs text-muted-foreground">Teléfono (opcional)</Label>
                 <Input
                   placeholder="Ej: 584121234567"
@@ -252,7 +252,7 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label>Método de pago</Label>
             <Select value={metodoPago} onValueChange={setMetodoPago}>
               <SelectTrigger>
@@ -266,7 +266,7 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label>Fecha de pago</Label>
             <Popover open={popoverCalendario} onOpenChange={setPopoverCalendario}>
               <PopoverTrigger asChild>
@@ -285,7 +285,7 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
             </Popover>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label>Estatus</Label>
             <Select value={estatusPago} onValueChange={setEstatusPago}>
               <SelectTrigger>
