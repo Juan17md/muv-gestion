@@ -40,6 +40,14 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
   ArrowLeft,
   ArrowRight,
   Plus,
@@ -547,90 +555,107 @@ export default function DetallePedidoPage({
               )}
             </div>
           ) : (
-            <div className="grid gap-3">
-              {productos.map((prod) => {
-                const pagoInfo = ESTADOS_PAGO.find((e) => e.valor === prod.estadoPago)
-                const totalProd = prod.precioUnitario * prod.cantidad
-                const precioCliente = totalProd + (prod.margen || 0) + (prod.envioCliente || 0)
-                const esInventario = prod.tipoProducto === "inventario" || (!prod.tipoProducto && !prod.clienteNombre)
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Producto</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead className="text-right">Cant.</TableHead>
+                    <TableHead className="text-right">Costo</TableHead>
+                    <TableHead className="text-right">Dscto</TableHead>
+                    <TableHead className="text-right">Envío</TableHead>
+                    <TableHead className="text-right">Venta</TableHead>
+                    <TableHead>Pago</TableHead>
+                    <TableHead className="w-24"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {productos.map((prod) => {
+                    const totalProd = prod.precioUnitario * prod.cantidad
+                    const precioCliente = totalProd + (prod.margen || 0) + (prod.envioCliente || 0)
+                    const esInventario = prod.tipoProducto === "inventario" || (!prod.tipoProducto && !prod.clienteNombre)
+                    const whatsapp = prod.clienteRef ? whatsappMap[prod.clienteRef] : ""
 
-                return (
-                  <div
-                    key={prod.id}
-                    className={cn(
-                      "flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border bg-background/50 transition-all",
-                      prod.retirado && "opacity-50"
-                    )}
-                  >
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{prod.nombre}</p>
-                        <span className="text-xs text-muted-foreground">
-                          x{prod.cantidad}
-                        </span>
-                        {prod.retirado && (
-                          <Badge variant="outline" className="text-[10px] h-5">Retirado</Badge>
-                        )}
-                        {esInventario && !prod.retirado && (
-                          <Badge variant="outline" className="text-[10px] h-5 text-blue-600 border-blue-200 bg-blue-50">Stock</Badge>
-                        )}
-                      </div>
-                      {prod.clienteNombre && !esInventario && (
-                        <p className="text-xs text-muted-foreground">{prod.clienteNombre}</p>
-                      )}
-                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        <span>Costo: {formatearMoneda(totalProd)}</span>
-                        {!esInventario && <span>Descuento: {formatearMoneda(prod.margen || 0)}</span>}
-                        {!esInventario && <span>Cliente: {formatearMoneda(precioCliente)}</span>}
-                        {prod.precioVenta && <span>Venta: {formatearMoneda(prod.precioVenta * prod.cantidad)}</span>}
-                      </div>
-                    </div>
-
-                    {!prod.retirado && (
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const whatsapp = prod.clienteRef ? whatsappMap[prod.clienteRef] : ""
-                          return whatsapp ? (
-                            <Button variant="ghost" size="icon-sm" asChild>
-                              <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer">
-                                <MessageCircle className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          ) : null
-                        })()}
-
-                        <div className="flex gap-1">
-                          {ESTADOS_PAGO.map((ep) => (
-                            <button
-                              key={ep.valor}
-                              onClick={() => prod.id && cambiarPago(prod.id, ep.valor)}
-                              className={cn(
-                                "px-2 py-1 rounded text-[10px] font-medium transition-all",
-                                prod.estadoPago === ep.valor
-                                  ? ep.color
-                                  : "bg-muted text-muted-foreground/50"
+                    return (
+                      <TableRow key={prod.id} className={cn(prod.retirado && "opacity-50")}>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium">{prod.nombre}</span>
+                            {prod.retirado && (
+                              <Badge variant="outline" className="text-[10px] h-5">Retirado</Badge>
+                            )}
+                            {esInventario && !prod.retirado && (
+                              <Badge variant="outline" className="text-[10px] h-5 text-blue-600 border-blue-200 bg-blue-50">Stock</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {prod.clienteNombre && !esInventario ? prod.clienteNombre : "-"}
+                        </TableCell>
+                        <TableCell className="text-right">{prod.cantidad}</TableCell>
+                        <TableCell className="text-right font-medium">{formatearMoneda(totalProd)}</TableCell>
+                        <TableCell className="text-right text-green-600">
+                          {!esInventario && prod.margen ? formatearMoneda(prod.margen) : "-"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {prod.envioCliente ? formatearMoneda(prod.envioCliente) : "-"}
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-emerald-600">
+                          {prod.precioVenta
+                            ? formatearMoneda(prod.precioVenta * prod.cantidad)
+                            : !esInventario
+                              ? formatearMoneda(precioCliente)
+                              : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {!prod.retirado && (
+                            <div className="flex gap-1">
+                              {ESTADOS_PAGO.map((ep) => (
+                                <button
+                                  key={ep.valor}
+                                  onClick={() => prod.id && cambiarPago(prod.id, ep.valor)}
+                                  className={cn(
+                                    "px-2 py-1 rounded text-[10px] font-medium transition-all",
+                                    prod.estadoPago === ep.valor
+                                      ? ep.color
+                                      : "bg-muted text-muted-foreground/50"
+                                  )}
+                                >
+                                  {ep.etiqueta}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {!prod.retirado && (
+                            <div className="flex items-center gap-1">
+                              {whatsapp && (
+                                <Button variant="ghost" size="icon-sm" asChild>
+                                  <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer">
+                                    <MessageCircle className="h-4 w-4" />
+                                  </a>
+                                </Button>
                               )}
-                            >
-                              {ep.etiqueta}
-                            </button>
-                          ))}
-                        </div>
-
-                        {esBorrador && prod.id && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => eliminarProducto(prod.id!)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                              {esBorrador && prod.id && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => eliminarProducto(prod.id!)}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
