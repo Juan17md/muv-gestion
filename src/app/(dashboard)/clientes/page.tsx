@@ -1,16 +1,23 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { clientesService } from "@/lib/firebaseServices"
-import { formatearFecha, cn } from "@/lib/utils"
-import { Card, CardContent } from "@/components/ui/card"
+import { formatearFecha } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import {
   Dialog,
   DialogContent,
@@ -20,10 +27,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { Plus, Search, Users, MessageCircle, ArrowRight, Loader2 } from "lucide-react"
+import { Plus, Search, Users, MessageCircle, Loader2 } from "lucide-react"
 import type { Cliente } from "@/lib/types"
 
 export default function ClientesPage() {
+  const router = useRouter()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState("")
@@ -135,66 +143,61 @@ export default function ClientesPage() {
         />
       </div>
 
-      <div className="grid gap-3">
-        {loading
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} className="card-glow">
-                <CardContent className="p-5">
-                  <Skeleton className="h-5 w-32 mb-2" />
-                  <Skeleton className="h-4 w-24" />
-                </CardContent>
-              </Card>
-            ))
-          : filtrados.map((cliente, idx) => (
-              <Link key={cliente.id} href={`/clientes/${cliente.id}`}>
-                <Card
-                  className={cn(
-                    "card-glow cursor-pointer hover:shadow-md transition-all duration-300",
-                    "animate-fade-up"
-                  )}
-                  style={{ animationDelay: `${idx * 50}ms` }}
-                >
-                  <CardContent className="p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2.5 rounded-xl bg-primary/10">
-                        <Users className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="font-semibold">{cliente.nombre}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {formatearFecha(cliente.creadoEn)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
+      <div className="rounded-xl border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nombre</TableHead>
+              <TableHead>WhatsApp</TableHead>
+              <TableHead>Registro</TableHead>
+              <TableHead className="w-16"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                  </TableRow>
+                ))
+              : filtrados.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-48 text-center">
+                      <Users className="h-8 w-8 mx-auto text-muted-foreground/50 mb-3" />
+                      <p className="text-muted-foreground">
+                        {busqueda ? "Sin resultados" : "No hay clientes"}
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                )
+              : filtrados.map((cliente) => (
+                  <TableRow
+                    key={cliente.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => router.push(`/clientes/${cliente.id}`)}
+                  >
+                    <TableCell className="font-medium">{cliente.nombre}</TableCell>
+                    <TableCell className="text-muted-foreground">{cliente.whatsapp}</TableCell>
+                    <TableCell className="text-muted-foreground">{formatearFecha(cliente.creadoEn)}</TableCell>
+                    <TableCell>
                       <Button
                         variant="ghost"
                         size="icon-sm"
                         onClick={(e) => {
-                          e.preventDefault()
-                          window.open(
-                            `https://wa.me/${cliente.whatsapp}`,
-                            "_blank"
-                          )
+                          e.stopPropagation()
+                          window.open(`https://wa.me/${cliente.whatsapp}`, "_blank")
                         }}
                       >
                         <MessageCircle className="h-4 w-4" />
                       </Button>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-
-        {!loading && filtrados.length === 0 && (
-          <div className="text-center py-16">
-            <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-            <p className="text-lg font-medium text-muted-foreground">
-              {busqueda ? "Sin resultados" : "No hay clientes"}
-            </p>
-          </div>
-        )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )

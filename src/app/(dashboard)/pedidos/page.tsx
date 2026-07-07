@@ -1,24 +1,37 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { formatearMoneda, formatearFecha, ESTADOS_PEDIDO, cn } from "@/lib/utils"
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Plus, Search, ShoppingCart, Package, ArrowRight } from "lucide-react"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Plus, Search, Package, ArrowRight } from "lucide-react"
 import type { Pedido } from "@/lib/types"
 
 const FILTROS_ESTADO = [
   { valor: "todos", etiqueta: "Todos" },
-  ...ESTADOS_PEDIDO.map((e) => ({ valor: e.valor, etiqueta: e.etiqueta })),
+  { valor: "borrador", etiqueta: "Borrador" },
+  { valor: "abierto", etiqueta: "Abierto" },
+  { valor: "cerrado", etiqueta: "Cerrado" },
 ]
 
+const ESTADOS_ABIERTO = ["comprado", "transito_china_usa", "casillero_usa", "transito_usa_ven", "entregado_ven", "entregado_cliente"]
+
 export default function PedidosPage() {
+  const router = useRouter()
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroEstado, setFiltroEstado] = useState("todos")
@@ -34,7 +47,8 @@ export default function PedidosPage() {
   }, [])
 
   const filtrados = pedidos.filter((p) => {
-    if (filtroEstado !== "todos" && p.estado !== filtroEstado) return false
+    if (filtroEstado === "abierto" && !ESTADOS_ABIERTO.includes(p.estado)) return false
+    if (filtroEstado !== "todos" && filtroEstado !== "abierto" && p.estado !== filtroEstado) return false
     if (busqueda) {
       const q = busqueda.toLowerCase()
       if (!p.tiendaNombre.toLowerCase().includes(q)) return false
@@ -85,67 +99,66 @@ export default function PedidosPage() {
         </div>
       </div>
 
-      <div className="grid gap-3">
-        {loading
-          ? Array.from({ length: 5 }).map((_, i) => (
-              <Card key={i} className="card-glow">
-                <CardContent className="p-5">
-                  <Skeleton className="h-5 w-48 mb-2" />
-                  <Skeleton className="h-4 w-32" />
-                </CardContent>
-              </Card>
-            ))
-          : filtrados.map((pedido, idx) => {
-              const estadoInfo = ESTADOS_PEDIDO.find((e) => e.valor === pedido.estado)
-              return (
-                <Link key={pedido.id} href={`/pedidos/${pedido.id}`}>
-                  <Card
-                    className={cn(
-                      "card-glow cursor-pointer hover:shadow-md transition-all duration-300",
-                      "animate-fade-up"
-                    )}
-                    style={{ animationDelay: `${idx * 50}ms` }}
-                  >
-                    <CardContent className="p-5 flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2.5 rounded-xl bg-primary/10 hidden sm:block">
-                          <Package className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <ShoppingCart className="h-4 w-4 text-primary sm:hidden" />
-                            <p className="font-semibold">{pedido.tiendaNombre}</p>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {formatearFecha(pedido.fechaCreacion)}
-                            {pedido.montoTotal && ` · ${formatearMoneda(pedido.montoTotal)}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
+      <div className="rounded-xl border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tienda</TableHead>
+              <TableHead>Fecha</TableHead>
+              <TableHead>Monto</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="w-10"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading
+              ? Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                  </TableRow>
+                ))
+              : filtrados.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-48 text-center">
+                      <Package className="h-8 w-8 mx-auto text-muted-foreground/50 mb-3" />
+                      <p className="text-muted-foreground mb-3">No hay pedidos</p>
+                      <Link href="/pedidos/nuevo">
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <Plus className="h-3 w-3" />
+                          Crear primer pedido
+                        </Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                )
+              : filtrados.map((pedido) => {
+                  const estadoInfo = ESTADOS_PEDIDO.find((e) => e.valor === pedido.estado)
+                  return (
+                    <TableRow
+                      key={pedido.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => router.push(`/pedidos/${pedido.id}`)}
+                    >
+                      <TableCell className="font-medium">{pedido.tiendaNombre}</TableCell>
+                      <TableCell className="text-muted-foreground">{formatearFecha(pedido.fechaCreacion)}</TableCell>
+                      <TableCell>{pedido.montoTotal ? formatearMoneda(pedido.montoTotal) : "-"}</TableCell>
+                      <TableCell>
                         <Badge className={cn(estadoInfo?.color, "border-0")}>
                           {estadoInfo?.etiqueta || pedido.estado}
                         </Badge>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground hidden sm:block" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              )
-            })}
-
-        {!loading && filtrados.length === 0 && (
-          <div className="text-center py-16">
-            <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-            <p className="text-lg font-medium text-muted-foreground">No hay pedidos</p>
-            <Link href="/pedidos/nuevo">
-              <Button variant="outline" className="mt-4 gap-2">
-                <Plus className="h-4 w-4" />
-                Crear primer pedido
-              </Button>
-            </Link>
-          </div>
-        )}
+                      </TableCell>
+                      <TableCell>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )

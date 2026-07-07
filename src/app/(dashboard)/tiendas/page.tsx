@@ -4,12 +4,19 @@ import { useState, useEffect } from "react"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { tiendasService } from "@/lib/firebaseServices"
-import { formatearFecha, cn } from "@/lib/utils"
-import { Card, CardContent } from "@/components/ui/card"
+import { formatearFecha } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import {
   Dialog,
   DialogContent,
@@ -156,72 +163,57 @@ export default function TiendasPage() {
         </Dialog>
       </div>
 
-      <div className="grid gap-3">
-        {loading
-          ? Array.from({ length: 3 }).map((_, i) => (
-              <Card key={i} className="card-glow">
-                <CardContent className="p-5">
-                  <Skeleton className="h-5 w-40 mb-2" />
-                  <Skeleton className="h-4 w-24" />
-                </CardContent>
-              </Card>
-            ))
-          : tiendas.map((tienda, idx) => (
-              <Card
-                key={tienda.id}
-                className={cn(
-                  "card-glow animate-fade-up",
-                )}
-                style={{ animationDelay: `${idx * 50}ms` }}
-              >
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2.5 rounded-xl bg-primary/10">
-                      <Store className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="font-semibold">{tienda.nombre}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatearFecha(tienda.creadoEn)}
-                        {tienda.notas && ` · ${tienda.notas}`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => abrirDialogo(tienda)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => eliminar(tienda.id)}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-        {!loading && tiendas.length === 0 && (
-          <div className="text-center py-16">
-            <Store className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-            <p className="text-lg font-medium text-muted-foreground">No hay tiendas</p>
-            <Button
-              variant="outline"
-              className="mt-4 gap-2"
-              onClick={() => abrirDialogo()}
-            >
-              <Plus className="h-4 w-4" />
-              Registrar primera tienda
-            </Button>
-          </div>
-        )}
+      <div className="rounded-xl border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Notas</TableHead>
+              <TableHead>Registro</TableHead>
+              <TableHead className="w-20"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading
+              ? Array.from({ length: 3 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-16" /></TableCell>
+                  </TableRow>
+                ))
+              : tiendas.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-48 text-center">
+                      <Store className="h-8 w-8 mx-auto text-muted-foreground/50 mb-3" />
+                      <p className="text-muted-foreground mb-3">No hay tiendas</p>
+                      <Button variant="outline" size="sm" className="gap-2" onClick={() => abrirDialogo()}>
+                        <Plus className="h-3 w-3" />
+                        Registrar primera tienda
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              : tiendas.map((tienda) => (
+                  <TableRow key={tienda.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">{tienda.nombre}</TableCell>
+                    <TableCell className="text-muted-foreground">{tienda.notas || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">{formatearFecha(tienda.creadoEn)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon-sm" onClick={() => abrirDialogo(tienda)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" onClick={() => eliminar(tienda.id)} className="text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+          </TableBody>
+        </Table>
       </div>
       <AlertDialog open={!!eliminandoId} onOpenChange={(open) => !open && setEliminandoId(null)}>
         <AlertDialogContent size="sm">

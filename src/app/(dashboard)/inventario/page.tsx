@@ -5,13 +5,20 @@ import Link from "next/link"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { inventarioService } from "@/lib/firebaseServices"
-import { formatearMoneda, formatearFecha, ESTADOS_ARTICULO, cn } from "@/lib/utils"
-import { Card, CardContent } from "@/components/ui/card"
+import { formatearMoneda, ESTADOS_ARTICULO, cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import {
   Dialog,
   DialogContent,
@@ -106,23 +113,23 @@ export default function InventarioPage() {
     }
     setGuardando(true)
     try {
-      const data = {
+      const data: Partial<ArticuloTienda> = {
         nombre: formNombre,
         cantidad: Number(formCantidad) || 0,
         costo: Number(formPrecioCompra) || 0,
         precioVenta: Number(formPrecioVenta) || 0,
-        tiendaCompra: formTiendaCompra || undefined,
-        codigo: formCodigo || undefined,
-        proveedor: formProveedor || undefined,
-        estado: "en_stock" as ArticuloTienda["estado"],
-        notas: formNotas || undefined,
+        estado: "en_stock",
       }
+      if (formTiendaCompra) data.tiendaCompra = formTiendaCompra
+      if (formCodigo) data.codigo = formCodigo
+      if (formProveedor) data.proveedor = formProveedor
+      if (formNotas) data.notas = formNotas
 
       if (editandoId) {
         await inventarioService.actualizar(editandoId, data)
         toast.success("Artículo actualizado")
       } else {
-        await inventarioService.crear(data)
+        await inventarioService.crear(data as Omit<ArticuloTienda, "id" | "creadoEn" | "actualizadoEn">)
         toast.success("Artículo agregado al inventario")
       }
       setDialogoAbierto(false)
@@ -187,17 +194,17 @@ export default function InventarioPage() {
                 </div>
                 <div className="space-y-3">
                   <Label>Cantidad</Label>
-                  <Input type="number" min={0} value={formCantidad} onChange={(e) => setFormCantidad(e.target.value)} />
+                  <Input type="number" min={0} placeholder="0" value={formCantidad} onChange={(e) => setFormCantidad(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <Label>Precio compra (USD)</Label>
-                  <Input type="number" min={0} step={0.01} value={formPrecioCompra} onChange={(e) => setFormPrecioCompra(e.target.value)} />
+                  <Input type="number" min={0} step={0.01} placeholder="0.00" value={formPrecioCompra} onChange={(e) => setFormPrecioCompra(e.target.value)} />
                 </div>
                 <div className="space-y-3">
                   <Label>Precio venta (USD)</Label>
-                  <Input type="number" min={0} step={0.01} value={formPrecioVenta} onChange={(e) => setFormPrecioVenta(e.target.value)} />
+                  <Input type="number" min={0} step={0.01} placeholder="0.00" value={formPrecioVenta} onChange={(e) => setFormPrecioVenta(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -247,81 +254,79 @@ export default function InventarioPage() {
         </div>
       </div>
 
-      <div className="grid gap-3">
-        {loading
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} className="card-glow">
-                <CardContent className="p-5">
-                  <Skeleton className="h-5 w-48 mb-2" />
-                  <Skeleton className="h-4 w-32" />
-                </CardContent>
-              </Card>
-            ))
-          : filtrados.map((articulo, idx) => {
-              const estadoInfo = ESTADOS_ARTICULO.find((e) => e.valor === articulo.estado)
-              return (
-                <Card
-                  key={articulo.id}
-                  className={cn("card-glow animate-fade-up")}
-                  style={{ animationDelay: `${idx * 50}ms` }}
-                >
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-4 flex-1">
-                        <div className="p-2.5 rounded-xl bg-primary/10 hidden sm:block">
-                          <Store className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="space-y-1 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold">{articulo.nombre}</p>
-                            {articulo.codigo && <span className="text-xs text-muted-foreground">· {articulo.codigo}</span>}
-                            <Badge className={cn(estadoInfo?.color, "border-0 text-[10px]")}>{estadoInfo?.etiqueta}</Badge>
-                          </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                            <span>Stock: <strong>{articulo.cantidad}</strong></span>
-                            <span>Venta: <strong>{formatearMoneda(articulo.precioVenta)}</strong></span>
-                            <span>Compra: <strong>{formatearMoneda(articulo.costo)}</strong></span>
-                          </div>
-                          {(articulo.tiendaCompra || articulo.proveedor) && (
-                            <p className="text-xs text-muted-foreground">
-                              {articulo.tiendaCompra && <span>Tienda: <span className="font-medium text-foreground">{articulo.tiendaCompra}</span></span>}
-                              {articulo.tiendaCompra && articulo.proveedor && <span> · </span>}
-                              {articulo.proveedor && <span>Proveedor: <span className="font-medium text-foreground">{articulo.proveedor}</span></span>}
-                            </p>
-                          )}
-                          {articulo.notas && (
-                            <p className="text-xs text-muted-foreground italic">{articulo.notas}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 ml-4">
-                        <Button variant="ghost" size="icon-sm" onClick={() => abrirDialogo(articulo)}>
-                          <Pencil className="h-4 w-4" />
+      <div className="rounded-xl border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Artículo</TableHead>
+              <TableHead>Stock</TableHead>
+              <TableHead>Compra</TableHead>
+              <TableHead>Venta</TableHead>
+              <TableHead>Tienda</TableHead>
+              <TableHead>Proveedor</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="w-20"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 7 }).map((__, j) => (
+                      <TableCell key={j}><Skeleton className="h-5 w-20" /></TableCell>
+                    ))}
+                    <TableCell><Skeleton className="h-8 w-16" /></TableCell>
+                  </TableRow>
+                ))
+              : filtrados.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-48 text-center">
+                      <Store className="h-8 w-8 mx-auto text-muted-foreground/50 mb-3" />
+                      <p className="text-muted-foreground">
+                        {busqueda || filtroEstado !== "todos" ? "Sin resultados" : "Tu tienda está vacía"}
+                      </p>
+                      {!busqueda && filtroEstado === "todos" && (
+                        <Button variant="outline" size="sm" className="mt-3 gap-2" onClick={() => abrirDialogo()}>
+                          <Plus className="h-3 w-3" />
+                          Agregar primer artículo
                         </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => eliminar(articulo.id)} className="text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-
-        {!loading && filtrados.length === 0 && (
-          <div className="text-center py-16">
-            <Store className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-            <p className="text-lg font-medium text-muted-foreground">
-              {busqueda || filtroEstado !== "todos" ? "Sin resultados" : "Tu tienda está vacía"}
-            </p>
-            {!busqueda && filtroEstado === "todos" && (
-              <Button variant="outline" className="mt-4 gap-2" onClick={() => abrirDialogo()}>
-                <Plus className="h-4 w-4" />
-                Agregar primer artículo
-              </Button>
-            )}
-          </div>
-        )}
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              : filtrados.map((articulo) => {
+                  const estadoInfo = ESTADOS_ARTICULO.find((e) => e.valor === articulo.estado)
+                  return (
+                    <TableRow key={articulo.id} className="cursor-pointer hover:bg-muted/50" onClick={() => abrirDialogo(articulo)}>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{articulo.nombre}</span>
+                          {articulo.codigo && <span className="text-xs text-muted-foreground">{articulo.codigo}</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell>{articulo.cantidad}</TableCell>
+                      <TableCell className="text-amber-600 font-medium">{formatearMoneda(articulo.costo)}</TableCell>
+                      <TableCell className="text-emerald-600 font-medium">{formatearMoneda(articulo.precioVenta)}</TableCell>
+                      <TableCell className="text-muted-foreground">{articulo.tiendaCompra || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">{articulo.proveedor || "-"}</TableCell>
+                      <TableCell>
+                        <Badge className={cn(estadoInfo?.color, "border-0")}>{estadoInfo?.etiqueta}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon-sm" onClick={() => abrirDialogo(articulo)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon-sm" onClick={() => eliminar(articulo.id)} className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+          </TableBody>
+        </Table>
       </div>
       <AlertDialog open={!!eliminandoId} onOpenChange={(open) => !open && setEliminandoId(null)}>
         <AlertDialogContent size="sm">

@@ -283,6 +283,7 @@ export default function DetallePedidoPage({
                         <Input
                           type="number"
                           min={1}
+                          placeholder="1"
                           value={nvoCantidad}
                           onChange={(e) => setNvoCantidad(e.target.value)}
                         />
@@ -293,6 +294,7 @@ export default function DetallePedidoPage({
                           type="number"
                           min={0}
                           step={0.01}
+                          placeholder="0.00"
                           value={nvoPrecio}
                           onChange={(e) => setNvoPrecio(e.target.value)}
                         />
@@ -305,6 +307,7 @@ export default function DetallePedidoPage({
                           type="number"
                           min={0}
                           step={0.01}
+                          placeholder="0.00"
                           value={nvoMargen}
                           onChange={(e) => setNvoMargen(e.target.value)}
                         />
@@ -315,6 +318,7 @@ export default function DetallePedidoPage({
                           type="number"
                           min={0}
                           step={0.01}
+                          placeholder="0.00"
                           value={nvoEnvio}
                           onChange={(e) => setNvoEnvio(e.target.value)}
                         />
