@@ -42,7 +42,7 @@ import { es } from "date-fns/locale"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { toast } from "sonner"
-import { ShoppingCart, ChevronsUpDown, Check } from "lucide-react"
+import { ShoppingCart, ChevronsUpDown, Check, Truck } from "lucide-react"
 import type { ArticuloTienda, Venta } from "@/lib/types"
 import type { Cliente } from "@/lib/types"
 
@@ -63,6 +63,8 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
   const [metodoPago, setMetodoPago] = useState("")
   const [fechaPago, setFechaPago] = useState<Date>(new Date())
   const [estatusPago, setEstatusPago] = useState("por_pagar")
+  const [deliveryIncluido, setDeliveryIncluido] = useState(false)
+  const [costoDelivery, setCostoDelivery] = useState("")
   const [enviando, setEnviando] = useState(false)
   const clienteRef = useRef<HTMLDivElement>(null)
 
@@ -72,6 +74,8 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
       setMetodoPago("")
       setFechaPago(new Date())
       setEstatusPago("por_pagar")
+      setDeliveryIncluido(false)
+      setCostoDelivery("")
       setClienteNombre("")
       setTelefonoCliente("")
     }
@@ -99,6 +103,8 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
     setCantidadVenta("")
     setClienteNombre("")
     setTelefonoCliente("")
+    setDeliveryIncluido(false)
+    setCostoDelivery("")
   }
 
   async function handleRegistrar() {
@@ -125,6 +131,7 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
         estatusPago,
         estatusEntrega: "por_entregar",
       }
+      if (deliveryIncluido && Number(costoDelivery) > 0) datosVenta.costoDelivery = Number(costoDelivery)
       if (articulo.codigo) datosVenta.articuloCodigo = articulo.codigo
       if (clienteExistente?.id) datosVenta.clienteId = clienteExistente.id
       if (whatsappFinal) datosVenta.clienteWhatsapp = whatsappFinal
@@ -146,6 +153,8 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
       setArticuloId("")
       setCantidadVenta("")
       setClienteNombre("")
+      setDeliveryIncluido(false)
+      setCostoDelivery("")
     } catch {
       toast.error("Error al registrar venta")
     } finally {
@@ -301,6 +310,44 @@ export default function RegistrarVentaDialog({ articulosEnStock }: RegistrarVent
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-3 pt-2 border-t">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Truck className="h-4 w-4 text-muted-foreground" />
+                <Label className="cursor-pointer">Incluye delivery</Label>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={deliveryIncluido}
+                onClick={() => setDeliveryIncluido(!deliveryIncluido)}
+                className={cn(
+                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                  deliveryIncluido ? "bg-primary" : "bg-input"
+                )}
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform",
+                    deliveryIncluido ? "translate-x-4" : "translate-x-0"
+                  )}
+                />
+              </button>
+            </div>
+            {deliveryIncluido && (
+              <div className="space-y-3 pl-6">
+                <Label>Costo de delivery (USD)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0.00"
+                  value={costoDelivery}
+                  onChange={(e) => setCostoDelivery(e.target.value)}
+                />
+              </div>
+            )}
           </div>
         </div>
 

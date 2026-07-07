@@ -92,6 +92,7 @@ export interface Venta {
   articuloCodigo?: string
   cantidad: number
   precioVenta: number
+  costoDelivery?: number
   clienteId?: string
   clienteNombre: string
   clienteWhatsapp?: string
