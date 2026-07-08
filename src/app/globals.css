@@ -254,6 +254,10 @@
 .dark .bg-yellow-100 { background-color: rgba(234, 179, 8, 0.12) !important; }
 .dark .text-yellow-700 { color: #facc15 !important; }
 
+.dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.08) !important; }
+.dark .text-blue-600 { color: #60a5fa !important; }
+.dark .border-blue-200 { border-color: rgba(59, 130, 246, 0.2) !important; }
+
 
 
 @media (prefers-reduced-motion: reduce) {
