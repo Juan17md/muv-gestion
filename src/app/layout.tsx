@@ -14,6 +14,16 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "Müv — Gestión de Pedidos",
   description: "Sistema de gestión para compras internacionales",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "Muv",
+    statusBarStyle: "default",
+  },
+  icons: [
+    { rel: "icon", url: "/icon-192.png", sizes: "192x192" },
+    { rel: "apple-touch-icon", url: "/icon-192.png" },
+  ],
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +33,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <AuthGuard>{children}</AuthGuard>
           <Toaster position="top-right" richColors />
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                if ("serviceWorker" in navigator) {
+                  window.addEventListener("load", () => {
+                    navigator.serviceWorker.register("/sw.js")
+                  })
+                }
+              `,
+            }}
+          />
         </ThemeProvider>
       </body>
     </html>
