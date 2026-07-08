@@ -41,15 +41,8 @@ const ESTADOS_ABIERTO: EstadoPedido[] = ["comprado", "transito_china_usa", "casi
 
 const FILTROS_ESTADO = [
   { valor: "todos", etiqueta: "Todos" },
-  { valor: "borrador", etiqueta: "Borrador" },
   { valor: "abierto", etiqueta: "Abierto" },
-  { valor: "comprado", etiqueta: "Comprado" },
-  { valor: "transito_china_usa", etiqueta: "Tránsito CN→US" },
-  { valor: "casillero_usa", etiqueta: "Casillero USA" },
-  { valor: "transito_usa_ven", etiqueta: "Tránsito US→VE" },
-  { valor: "entregado_ven", etiqueta: "Entregado VEN" },
-  { valor: "entregado_cliente", etiqueta: "Entregado Cliente" },
-  { valor: "cerrado", etiqueta: "Cerrado" },
+  ...ESTADOS_PEDIDO.map((e) => ({ valor: e.valor, etiqueta: e.etiqueta })),
 ]
 
 export default function HistorialPage() {
