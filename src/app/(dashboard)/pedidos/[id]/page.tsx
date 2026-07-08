@@ -373,7 +373,7 @@ export default function DetallePedidoPage({
   const estadoActual = ESTADOS_PEDIDO.find((e) => e.valor === pedido.estado)
   const idxActual = ESTADOS_TIMELINE.indexOf(pedido.estado)
   const esBorrador = pedido.estado === "borrador"
-  const costoTotal = productos.reduce((s, p) => s + p.precioUnitario * p.cantidad, 0)
+  const costoTotal = productos.reduce((s, p) => s + (p.precioUnitario * p.cantidad) + (p.envioCliente || 0) - (p.descuento || 0), 0)
 
   return (
     <div className="page-container max-w-4xl space-y-8 animate-fade-in">
@@ -899,6 +899,7 @@ export default function DetallePedidoPage({
                       (s, p) =>
                         s +
                         p.precioUnitario * p.cantidad +
+                        (p.envioCliente || 0) -
                         (p.descuento || 0) -
                         (p.montoPagado || 0),
                       0
