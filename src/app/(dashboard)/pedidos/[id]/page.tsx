@@ -525,7 +525,7 @@ export default function DetallePedidoPage({
 
             <div className="flex gap-2">
               {idxActual > 0 && (
-                <Button variant="outline" size="sm" onClick={retrocederEstado}>
+                <Button variant="outline" size="sm" onClick={retrocederEstado} className="dark:bg-muted dark:text-muted-foreground dark:border-none">
                   <ArrowLeft className="h-3 w-3 mr-1" />
                   Retroceder
                 </Button>
