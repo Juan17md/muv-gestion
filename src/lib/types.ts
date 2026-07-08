@@ -50,6 +50,11 @@ export interface Pedido {
   gananciaTotal?: number
   fechaCreacion: Timestamp
   fechaCompra?: Timestamp
+  fechaTransitoChina?: Timestamp
+  fechaCasillero?: Timestamp
+  fechaTransitoVen?: Timestamp
+  fechaEntregadoVen?: Timestamp
+  fechaEntregadoCliente?: Timestamp
   fechaCierre?: Timestamp
   actualizadoEn: Timestamp
 }

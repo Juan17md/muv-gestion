@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
-import { doc, onSnapshot, collection, getDocs, query, orderBy } from "firebase/firestore"
+import { doc, onSnapshot, collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { pedidosService, productosService, ventasService, inventarioService } from "@/lib/firebaseServices"
 import {
@@ -53,6 +53,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Calendar } from "@/components/ui/calendar"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 import {
   ArrowLeft,
   ArrowRight,
@@ -67,9 +75,35 @@ import {
   User,
   PackagePlus,
   Pencil,
+  CalendarIcon,
 } from "lucide-react"
 import Link from "next/link"
 import type { Pedido, ProductoPedido, ArticuloTienda, EstadoPedido } from "@/lib/types"
+
+function DatePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const date = value ? new Date(value + "T12:00:00") : undefined
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className="w-full justify-start text-left font-normal"
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {date ? format(date, "dd/MM/yyyy") : <span className="text-muted-foreground">Seleccionar fecha</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          locale={es}
+          onSelect={(d) => onChange(d ? d.toISOString().split("T")[0] : "")}
+        />
+      </PopoverContent>
+    </Popover>
+  )
+}
 
 const ESTADOS_TIMELINE: EstadoPedido[] = [
   "borrador",
@@ -115,6 +149,12 @@ export default function DetallePedidoPage({
   const [nvoDescuentoPedido, setNvoDescuentoPedido] = useState("")
   const [envioVnzlDialogoAbierto, setEnvioVnzlDialogoAbierto] = useState(false)
   const [nvoCostoEnvioVnzl, setNvoCostoEnvioVnzl] = useState("")
+  const [fechaDialogoAbierto, setFechaDialogoAbierto] = useState(false)
+  const [fechaDialogoObjetivo, setFechaDialogoObjetivo] = useState<EstadoPedido | "">("")
+  const [nvoFecha, setNvoFecha] = useState("")
+  const todayStr = new Date().toISOString().split("T")[0]
+  const timestampAInputDate = (ts: Timestamp) =>
+    new Date(ts.seconds * 1000).toISOString().split("T")[0]
 
   useEffect(() => {
     const unsubPedido = onSnapshot(doc(db, "pedidos", id), (snap) => {
@@ -162,6 +202,11 @@ export default function DetallePedidoPage({
     if (!sig) return
 
     if (sig === "entregado_cliente") {
+      setNvoFecha(
+        pedido.fechaEntregadoCliente
+          ? timestampAInputDate(pedido.fechaEntregadoCliente)
+          : todayStr
+      )
       setRetiroDialogoAbierto(true)
       return
     }
@@ -172,18 +217,29 @@ export default function DetallePedidoPage({
       setNvoCostoEnvio(pedido.costoEnvioTotal != null ? String(pedido.costoEnvioTotal) : "")
       setNvoImpuestoCompra(pedido.impuestoCompra != null ? String(pedido.impuestoCompra) : "")
       setNvoDescuentoPedido(pedido.descuentoPedido != null ? String(pedido.descuentoPedido) : "")
+      setNvoFecha(
+        pedido.fechaCompra
+          ? timestampAInputDate(pedido.fechaCompra)
+          : todayStr
+      )
       setCompraDialogoAbierto(true)
       return
     }
 
     if (pedido.estado === "casillero_usa" && sig === "transito_usa_ven") {
       setNvoCostoEnvioVnzl(pedido.costoEnvioVnzl != null ? String(pedido.costoEnvioVnzl) : "")
+      setNvoFecha(
+        pedido.fechaTransitoVen
+          ? timestampAInputDate(pedido.fechaTransitoVen)
+          : new Date().toISOString().split("T")[0]
+      )
       setEnvioVnzlDialogoAbierto(true)
       return
     }
 
-    await pedidosService.avanzarEstado(pedido.id, sig)
-    toast.success(`Pedido avanzó a ${ESTADOS_PEDIDO.find((e) => e.valor === sig)?.etiqueta}`)
+    setNvoFecha(new Date().toISOString().split("T")[0])
+    setFechaDialogoObjetivo(sig)
+    setFechaDialogoAbierto(true)
   }
 
   const confirmarCompra = async () => {
@@ -197,7 +253,7 @@ export default function DetallePedidoPage({
     try {
       const data: Record<string, unknown> = {
         numeroGuia: nvoNumeroGuia.trim(),
-        fechaCompra: new Date(),
+        fechaCompra: Timestamp.fromDate(new Date(nvoFecha + "T12:00:00")),
       }
       if (nvoServicioMensajeria.trim()) data.servicioMensajeria = nvoServicioMensajeria.trim()
       if (nvoCostoEnvio) data.costoEnvioTotal = Number(nvoCostoEnvio)
@@ -220,7 +276,9 @@ export default function DetallePedidoPage({
 
     setCreando(true)
     try {
-      const data: Record<string, unknown> = {}
+      const data: Record<string, unknown> = {
+        fechaTransitoVen: Timestamp.fromDate(new Date(nvoFecha + "T12:00:00")),
+      }
       if (nvoCostoEnvioVnzl) data.costoEnvioVnzl = Number(nvoCostoEnvioVnzl)
       await pedidosService.actualizar(pedido.id, data)
       await pedidosService.avanzarEstado(pedido.id, "transito_usa_ven")
@@ -233,18 +291,52 @@ export default function DetallePedidoPage({
     }
   }
 
+  const MAPA_FECHA_AVANCE: Record<string, string> = {
+    transito_china_usa: "fechaTransitoChina",
+    casillero_usa: "fechaCasillero",
+    entregado_ven: "fechaEntregadoVen",
+  }
+
+  const confirmarFechaAvance = async () => {
+    if (!pedido || !fechaDialogoObjetivo) return
+    const campoFecha = MAPA_FECHA_AVANCE[fechaDialogoObjetivo]
+    if (!campoFecha) return
+
+    setCreando(true)
+    try {
+      await pedidosService.actualizar(pedido.id, {
+        [campoFecha]: Timestamp.fromDate(new Date(nvoFecha + "T12:00:00")),
+      })
+      await pedidosService.avanzarEstado(pedido.id, fechaDialogoObjetivo as EstadoPedido)
+      setFechaDialogoAbierto(false)
+      toast.success(
+        `Pedido avanzó a ${ESTADOS_PEDIDO.find((e) => e.valor === fechaDialogoObjetivo)?.etiqueta}`
+      )
+    } catch {
+      toast.error("Error al guardar fecha")
+    } finally {
+      setCreando(false)
+    }
+  }
+
   const confirmarRetiro = async () => {
     if (!pedido) return
     setRetiroDialogoAbierto(false)
 
     const pendientes = productos.filter((p) => !p.retirado)
     if (pendientes.length === 0) {
+      await pedidosService.actualizar(pedido.id, {
+        fechaEntregadoCliente: Timestamp.fromDate(new Date(nvoFecha + "T12:00:00")),
+      })
       await pedidosService.avanzarEstado(pedido.id, "entregado_cliente")
       toast.success("Pedido retirado")
       return
     }
 
     try {
+      await pedidosService.actualizar(pedido.id, {
+        fechaEntregadoCliente: Timestamp.fromDate(new Date(nvoFecha + "T12:00:00")),
+      })
       for (const prod of pendientes) {
         if (prod.tipoProducto === "inventario" || (!prod.tipoProducto && !prod.clienteNombre)) {
           await inventarioService.crear({
@@ -451,30 +543,47 @@ export default function DetallePedidoPage({
             {ESTADOS_TIMELINE.map((est, i) => {
               const info = ESTADOS_PEDIDO.find((e) => e.valor === est)
               const completado = i <= idxActual
+              const fechaAvance = (() => {
+                if (est === "borrador") return pedido.fechaCreacion
+                if (est === "comprado") return pedido.fechaCompra
+                if (est === "transito_china_usa") return pedido.fechaTransitoChina
+                if (est === "casillero_usa") return pedido.fechaCasillero
+                if (est === "transito_usa_ven") return pedido.fechaTransitoVen
+                if (est === "entregado_ven") return pedido.fechaEntregadoVen
+                if (est === "entregado_cliente") return pedido.fechaEntregadoCliente
+                return undefined
+              })()
               return (
-                <div key={est} className="flex items-center gap-1.5 flex-1 min-w-[120px]">
-                  <div
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all",
-                      completado
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {completado ? (
-                      <Check className="h-3.5 w-3.5 shrink-0" />
-                    ) : (
-                      <div className="h-2 w-2 rounded-full bg-muted-foreground/30 shrink-0" />
-                    )}
-                    {info?.etiqueta}
-                  </div>
-                  {i < ESTADOS_TIMELINE.length - 1 && (
+                <div key={est} className="flex flex-col flex-1 min-w-[120px] gap-1.5">
+                  <div className="flex items-center gap-1.5">
                     <div
                       className={cn(
-                        "h-px w-3 shrink-0",
-                        completado ? "bg-primary" : "bg-border"
+                        "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all",
+                        completado
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
                       )}
-                    />
+                    >
+                      {completado ? (
+                        <Check className="h-3.5 w-3.5 shrink-0" />
+                      ) : (
+                        <div className="h-2 w-2 rounded-full bg-muted-foreground/30 shrink-0" />
+                      )}
+                      {info?.etiqueta}
+                    </div>
+                    {i < ESTADOS_TIMELINE.length - 1 && (
+                      <div
+                        className={cn(
+                          "h-px w-3 shrink-0",
+                          completado ? "bg-primary" : "bg-border"
+                        )}
+                      />
+                    )}
+                  </div>
+                  {fechaAvance && completado && (
+                    <span className="text-[10px] text-primary text-center leading-tight">
+                      {formatearFecha(fechaAvance)}
+                    </span>
                   )}
                 </div>
               )
@@ -955,6 +1064,31 @@ export default function DetallePedidoPage({
         </CardContent>
       </Card>
 
+      <Dialog open={fechaDialogoAbierto} onOpenChange={setFechaDialogoAbierto}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Fecha del avance</DialogTitle>
+            <DialogDescription>
+              Ingresa la fecha para este cambio de estado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Fecha</Label>
+              <DatePicker value={nvoFecha} onChange={setNvoFecha} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setFechaDialogoAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmarFechaAvance} disabled={creando}>
+              {creando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={compraDialogoAbierto} onOpenChange={setCompraDialogoAbierto}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -981,6 +1115,10 @@ export default function DetallePedidoPage({
                 onChange={(e) => setNvoServicioMensajeria(e.target.value)}
                 placeholder="Ej: Zoom, MRW, Tealca"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Fecha de compra</Label>
+              <DatePicker value={nvoFecha} onChange={setNvoFecha} />
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
@@ -1039,6 +1177,10 @@ export default function DetallePedidoPage({
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
+              <Label>Fecha de salida</Label>
+              <DatePicker value={nvoFecha} onChange={setNvoFecha} />
+            </div>
+            <div className="space-y-2">
               <Label>Costo de envío (USD)</Label>
               <Input
                 type="number"
@@ -1085,6 +1227,12 @@ export default function DetallePedidoPage({
               })()}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="px-6 pb-4">
+            <Label>Fecha de retiro</Label>
+            <div className="mt-2">
+              <DatePicker value={nvoFecha} onChange={setNvoFecha} />
+            </div>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setRetiroDialogoAbierto(false)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmarRetiro}>
