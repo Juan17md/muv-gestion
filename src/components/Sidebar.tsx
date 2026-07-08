@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Package, Users, Store, Archive, LayoutPanelTop, Receipt, LogOut, BarChart3 } from "lucide-react"
+import { LayoutDashboard, Package, Users, Store, Archive, LayoutPanelTop, Receipt, LogOut, BarChart3, History } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ToggleTema } from "./ToggleTema"
 import { auth } from "@/lib/firebase"
@@ -20,6 +20,7 @@ const secciones = [
     enlaces: [
       { href: "/pedidos/panel", label: "Panel", icon: LayoutDashboard },
       { href: "/pedidos", label: "Pedidos", icon: Package },
+      { href: "/pedidos/historial", label: "Historial", icon: History },
     ],
   },
   {
