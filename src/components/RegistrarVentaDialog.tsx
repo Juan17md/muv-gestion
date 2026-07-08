@@ -187,7 +187,10 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
           <div className="space-y-4">
             <div className="space-y-3">
-              <Label>Artículo</Label>
+              <div className="flex justify-between items-end">
+                <Label>Artículo</Label>
+                <Label className="text-xs">Cant.</Label>
+              </div>
               {articulosEnStock.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2">No hay artículos en stock.</p>
               ) : (
@@ -229,8 +232,7 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <div className="w-20 space-y-3">
-                    <Label className="text-xs">Cant.</Label>
+                  <div className="w-20">
                     <Input type="number" min={1} placeholder="1" value={cantidadVenta} onChange={(e) => setCantidadVenta(e.target.value)} />
                   </div>
                 </div>

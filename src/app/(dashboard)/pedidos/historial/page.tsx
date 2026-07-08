@@ -35,15 +35,9 @@ import {
   X,
   ArrowUpDown,
 } from "lucide-react"
-import type { Pedido, EstadoPedido } from "@/lib/types"
+import type { Pedido } from "@/lib/types"
 
-const ESTADOS_ABIERTO: EstadoPedido[] = ["comprado", "transito_china_usa", "casillero_usa", "transito_usa_ven", "entregado_ven"]
-
-const FILTROS_ESTADO = [
-  { valor: "todos", etiqueta: "Todos" },
-  { valor: "abierto", etiqueta: "Abierto" },
-  ...ESTADOS_PEDIDO.map((e) => ({ valor: e.valor, etiqueta: e.etiqueta })),
-]
+const ABIERTOS = new Set(["comprado", "transito_china_usa", "casillero_usa", "transito_usa_ven", "entregado_ven"])
 
 export default function HistorialPage() {
   const router = useRouter()
@@ -86,7 +80,7 @@ export default function HistorialPage() {
 
   const filtrados = useMemo(() => {
     let resultado = pedidos.filter((p) => {
-      if (filtroEstado === "abierto" && !ESTADOS_ABIERTO.includes(p.estado)) return false
+      if (filtroEstado === "abierto" && !ABIERTOS.has(p.estado as string)) return false
       if (filtroEstado !== "todos" && filtroEstado !== "abierto" && p.estado !== filtroEstado) return false
       if (busqueda) {
         const q = busqueda.toLowerCase()
@@ -133,7 +127,11 @@ export default function HistorialPage() {
 
         <div className="flex flex-wrap gap-2">
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {FILTROS_ESTADO.map((f) => (
+            {[
+              { valor: "todos", etiqueta: "Todos" },
+              { valor: "abierto", etiqueta: "Abierto" },
+              ...ESTADOS_PEDIDO.map((e) => ({ valor: e.valor, etiqueta: e.etiqueta })),
+            ].map((f) => (
               <button
                 key={f.valor}
                 onClick={() => setFiltroEstado(f.valor)}
