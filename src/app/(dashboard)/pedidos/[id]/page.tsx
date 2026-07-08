@@ -107,6 +107,12 @@ export default function DetallePedidoPage({
   const [retiroDialogoAbierto, setRetiroDialogoAbierto] = useState(false)
   const [whatsappMap, setWhatsappMap] = useState<Record<string, string>>({})
   const [productoEditando, setProductoEditando] = useState<string | null>(null)
+  const [compraDialogoAbierto, setCompraDialogoAbierto] = useState(false)
+  const [nvoNumeroGuia, setNvoNumeroGuia] = useState("")
+  const [nvoServicioMensajeria, setNvoServicioMensajeria] = useState("")
+  const [nvoCostoEnvio, setNvoCostoEnvio] = useState("")
+  const [nvoImpuestoCompra, setNvoImpuestoCompra] = useState("")
+  const [nvoDescuentoPedido, setNvoDescuentoPedido] = useState("")
 
   useEffect(() => {
     const unsubPedido = onSnapshot(doc(db, "pedidos", id), (snap) => {
@@ -151,8 +157,47 @@ export default function DetallePedidoPage({
       return
     }
 
+    if (pedido.estado === "borrador" && sig === "comprado") {
+      setNvoNumeroGuia(pedido.numeroGuia || "")
+      setNvoServicioMensajeria(pedido.servicioMensajeria || "")
+      setNvoCostoEnvio(pedido.costoEnvioTotal != null ? String(pedido.costoEnvioTotal) : "")
+      setNvoImpuestoCompra(pedido.impuestoCompra != null ? String(pedido.impuestoCompra) : "")
+      setNvoDescuentoPedido(pedido.descuentoPedido != null ? String(pedido.descuentoPedido) : "")
+      setCompraDialogoAbierto(true)
+      return
+    }
+
     await pedidosService.avanzarEstado(pedido.id, sig)
     toast.success(`Pedido avanzó a ${ESTADOS_PEDIDO.find((e) => e.valor === sig)?.etiqueta}`)
+  }
+
+  const confirmarCompra = async () => {
+    if (!pedido) return
+    if (!nvoNumeroGuia.trim()) {
+      toast.error("El número de guía es requerido")
+      return
+    }
+
+    setCreando(true)
+    try {
+      const data: Record<string, unknown> = {
+        numeroGuia: nvoNumeroGuia.trim(),
+        fechaCompra: new Date(),
+      }
+      if (nvoServicioMensajeria.trim()) data.servicioMensajeria = nvoServicioMensajeria.trim()
+      if (nvoCostoEnvio) data.costoEnvioTotal = Number(nvoCostoEnvio)
+      if (nvoImpuestoCompra) data.impuestoCompra = Number(nvoImpuestoCompra)
+      if (nvoDescuentoPedido) data.descuentoPedido = Number(nvoDescuentoPedido)
+
+      await pedidosService.actualizar(pedido.id, data)
+      await pedidosService.avanzarEstado(pedido.id, "comprado")
+      setCompraDialogoAbierto(false)
+      toast.success("Pedido comprado")
+    } catch {
+      toast.error("Error al guardar datos de compra")
+    } finally {
+      setCreando(false)
+    }
   }
 
   const confirmarRetiro = async () => {
@@ -322,7 +367,6 @@ export default function DetallePedidoPage({
   const idxActual = ESTADOS_TIMELINE.indexOf(pedido.estado)
   const esBorrador = pedido.estado === "borrador"
   const costoTotal = productos.reduce((s, p) => s + p.precioUnitario * p.cantidad, 0)
-  const gananciaTotal = productos.reduce((s, p) => s + (p.margen || 0) * p.cantidad, 0)
 
   return (
     <div className="page-container max-w-4xl space-y-8 animate-fade-in">
@@ -784,6 +828,49 @@ export default function DetallePedidoPage({
         </CardContent>
       </Card>
 
+      {(pedido.numeroGuia || pedido.servicioMensajeria || pedido.costoEnvioTotal || pedido.impuestoCompra || pedido.descuentoPedido) && (
+        <Card className="card-glow">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Package className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-bold">Detalles de Compra</h2>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {pedido.numeroGuia && (
+                <div>
+                  <p className="text-xs text-muted-foreground">N° Guía</p>
+                  <p className="text-sm font-medium">{pedido.numeroGuia}</p>
+                </div>
+              )}
+              {pedido.servicioMensajeria && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Mensajería</p>
+                  <p className="text-sm font-medium">{pedido.servicioMensajeria}</p>
+                </div>
+              )}
+              {pedido.costoEnvioTotal != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Costo Envío</p>
+                  <p className="text-sm font-medium">{formatearMoneda(pedido.costoEnvioTotal)}</p>
+                </div>
+              )}
+              {pedido.impuestoCompra != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Impuesto</p>
+                  <p className="text-sm font-medium">{formatearMoneda(pedido.impuestoCompra)}</p>
+                </div>
+              )}
+              {pedido.descuentoPedido != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Descuento</p>
+                  <p className="text-sm font-medium text-green-600">{formatearMoneda(pedido.descuentoPedido)}</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="card-glow">
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -794,12 +881,6 @@ export default function DetallePedidoPage({
             <div>
               <p className="text-xs text-muted-foreground">Costo Total</p>
               <p className="text-lg font-bold">{formatearMoneda(costoTotal)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Ganancia Total</p>
-              <p className="text-lg font-bold text-emerald-600">
-                {formatearMoneda(gananciaTotal)}
-              </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Pendiente de Pago</p>
@@ -819,12 +900,94 @@ export default function DetallePedidoPage({
               </p>
             </div>
             <div>
+              <p className="text-xs text-muted-foreground">Envío por Producto</p>
+              <p className="text-lg font-bold">
+                {pedido.costoEnvioTotal != null && productos.length > 0
+                  ? formatearMoneda(pedido.costoEnvioTotal / productos.length)
+                  : "-"}
+              </p>
+            </div>
+            <div>
               <p className="text-xs text-muted-foreground">Productos</p>
               <p className="text-lg font-bold">{productos.length}</p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={compraDialogoAbierto} onOpenChange={setCompraDialogoAbierto}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Comprar Pedido</DialogTitle>
+            <DialogDescription>
+              Ingresa los datos de la compra para avanzar el pedido a "Comprado".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>
+                Número de Guía <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={nvoNumeroGuia}
+                onChange={(e) => setNvoNumeroGuia(e.target.value)}
+                placeholder="Ej: 1Z999AA10123456784"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Servicio de Mensajería</Label>
+              <Input
+                value={nvoServicioMensajeria}
+                onChange={(e) => setNvoServicioMensajeria(e.target.value)}
+                placeholder="Ej: Zoom, MRW, Tealca"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Costo Envío</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0.00"
+                  value={nvoCostoEnvio}
+                  onChange={(e) => setNvoCostoEnvio(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Impuesto</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0.00"
+                  value={nvoImpuestoCompra}
+                  onChange={(e) => setNvoImpuestoCompra(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Descuento</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0.00"
+                  value={nvoDescuentoPedido}
+                  onChange={(e) => setNvoDescuentoPedido(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setCompraDialogoAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmarCompra} disabled={creando}>
+              {creando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar compra"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={retiroDialogoAbierto} onOpenChange={setRetiroDialogoAbierto}>
         <AlertDialogContent size="sm">

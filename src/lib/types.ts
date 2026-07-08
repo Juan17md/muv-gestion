@@ -40,7 +40,11 @@ export interface Pedido {
   tiendaNombre: string
   estado: EstadoPedido
   ubicacion: string
+  numeroGuia?: string
+  servicioMensajeria?: string
   costoEnvioTotal?: number
+  impuestoCompra?: number
+  descuentoPedido?: number
   montoTotal?: number
   gananciaTotal?: number
   fechaCreacion: Timestamp
