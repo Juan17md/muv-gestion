@@ -51,7 +51,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden lg:flex flex-col w-[240px] min-h-screen border-r bg-background/50 dark:bg-[oklch(0.14_0.025_290/0.75)] backdrop-blur-xl fixed left-0 top-0 z-40">
+    <aside className="hidden lg:flex flex-col w-[240px] min-h-screen border-r bg-background/50 dark:bg-[#0a0a0a] backdrop-blur-xl fixed left-0 top-0 z-40">
       <div className="flex items-center justify-between px-6 py-8">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
