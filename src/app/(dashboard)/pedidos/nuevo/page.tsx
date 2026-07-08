@@ -104,7 +104,7 @@ export default function NuevoPedidoPage() {
                     className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 text-left ${
                       tiendaSeleccionada === t.id
                         ? "border-primary bg-primary/5"
-                        : "border-input hover:border-primary/50"
+                        : "border-border dark:border-white/10 hover:border-primary/50"
                     }`}
                   >
                     <Store className="h-4 w-4 text-muted-foreground" />
