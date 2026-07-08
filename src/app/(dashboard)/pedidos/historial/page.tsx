@@ -6,7 +6,7 @@ import Link from "next/link"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { pedidosService, productosService } from "@/lib/firebaseServices"
-import { formatearMoneda, formatearFecha, ESTADOS_PEDIDO, cn } from "@/lib/utils"
+import { formatearFecha, ESTADOS_PEDIDO, cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -215,27 +215,24 @@ export default function HistorialPage() {
               <TableHead>Tienda</TableHead>
               <TableHead>Guía</TableHead>
               <TableHead>Productos</TableHead>
-              <TableHead>Creado</TableHead>
               <TableHead>Compra</TableHead>
-              <TableHead>Entrega</TableHead>
-              <TableHead>Monto</TableHead>
-              <TableHead>Ganancia</TableHead>
+              <TableHead>Cerrado</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead className="w-20"></TableHead>
+              <TableHead className="w-20">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading
               ? Array.from({ length: 8 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 10 }).map((__, j) => (
+                    {Array.from({ length: 7 }).map((__, j) => (
                       <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
                     ))}
                   </TableRow>
                 ))
               : filtrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="h-48 text-center">
+                    <TableCell colSpan={7} className="h-48 text-center">
                       <Package className="h-8 w-8 mx-auto text-muted-foreground/50 mb-3" />
                       <p className="text-muted-foreground">No hay pedidos</p>
                     </TableCell>
@@ -255,19 +252,12 @@ export default function HistorialPage() {
                       </TableCell>
                       <TableCell>{productosCount[pedido.id] ?? <Skeleton className="h-5 w-8" />}</TableCell>
                       <TableCell className="text-muted-foreground text-xs">
-                        {formatearFecha(pedido.fechaCreacion)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
                         {formatearFecha(pedido.fechaCompra)}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-xs">
                         {pedido.estado === "cerrado" || pedido.estado === "entregado_cliente"
                           ? formatearFecha(pedido.fechaEntregadoCliente || pedido.fechaCierre)
                           : "-"}
-                      </TableCell>
-                      <TableCell>{pedido.montoTotal ? formatearMoneda(pedido.montoTotal) : "-"}</TableCell>
-                      <TableCell className="text-emerald-600">
-                        {pedido.gananciaTotal != null ? formatearMoneda(pedido.gananciaTotal) : "-"}
                       </TableCell>
                       <TableCell>
                         <Badge className={cn(estadoInfo?.color, "border-0 text-[10px]")}>

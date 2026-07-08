@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, Package, Users, Store, Archive, LayoutPanelTop, Receipt, LogOut, BarChart3, History } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useMemo } from "react"
 import { ToggleTema } from "./ToggleTema"
 import { auth } from "@/lib/firebase"
 import { useRouter } from "next/navigation"
@@ -63,7 +64,11 @@ export function Sidebar() {
           <div key={titulo} className="space-y-1">
             <p className="typography-label text-muted-foreground/60 px-3">{titulo}</p>
             {enlaces.map(({ href, label, icon: Icon }) => {
-              const activo = pathname === href || pathname.startsWith(href + "/")
+              const activo = pathname === href || (() => {
+                if (!pathname.startsWith(href + "/")) return false
+                const sgte = pathname.slice((href + "/").length).split("/")[0]
+                return sgte !== "historial" && sgte !== "panel"
+              })()
               return (
                 <Link
                   key={href}
