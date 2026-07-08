@@ -597,7 +597,7 @@ export default function DetallePedidoPage({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Package className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-bold">Productos</h2>
+              <h2 className="text-lg font-bold text-foreground dark:text-white">Productos</h2>
             </div>
             {esBorrador && (
               <Dialog open={dialogoAbierto} onOpenChange={setDialogoAbierto}>

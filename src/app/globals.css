@@ -191,11 +191,15 @@
   background: #1e1b2e;
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .dark .card-glow:hover {
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(0, 0, 0, 0.25), 0 0 20px rgba(168, 85, 247, 0.15);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .dark .border,
@@ -214,7 +218,7 @@
 }
 
 .dark [data-slot="table-header"] th {
-  color: #c084fc;
+  color: #ffffff;
   font-weight: 600;
 }
 
