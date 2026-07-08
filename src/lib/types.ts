@@ -43,6 +43,7 @@ export interface Pedido {
   numeroGuia?: string
   servicioMensajeria?: string
   costoEnvioTotal?: number
+  costoEnvioVnzl?: number
   impuestoCompra?: number
   descuentoPedido?: number
   montoTotal?: number

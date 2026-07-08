@@ -113,6 +113,8 @@ export default function DetallePedidoPage({
   const [nvoCostoEnvio, setNvoCostoEnvio] = useState("")
   const [nvoImpuestoCompra, setNvoImpuestoCompra] = useState("")
   const [nvoDescuentoPedido, setNvoDescuentoPedido] = useState("")
+  const [envioVnzlDialogoAbierto, setEnvioVnzlDialogoAbierto] = useState(false)
+  const [nvoCostoEnvioVnzl, setNvoCostoEnvioVnzl] = useState("")
 
   useEffect(() => {
     const unsubPedido = onSnapshot(doc(db, "pedidos", id), (snap) => {
@@ -174,6 +176,12 @@ export default function DetallePedidoPage({
       return
     }
 
+    if (pedido.estado === "casillero_usa" && sig === "transito_usa_ven") {
+      setNvoCostoEnvioVnzl(pedido.costoEnvioVnzl != null ? String(pedido.costoEnvioVnzl) : "")
+      setEnvioVnzlDialogoAbierto(true)
+      return
+    }
+
     await pedidosService.avanzarEstado(pedido.id, sig)
     toast.success(`Pedido avanzó a ${ESTADOS_PEDIDO.find((e) => e.valor === sig)?.etiqueta}`)
   }
@@ -202,6 +210,24 @@ export default function DetallePedidoPage({
       toast.success("Pedido comprado")
     } catch {
       toast.error("Error al guardar datos de compra")
+    } finally {
+      setCreando(false)
+    }
+  }
+
+  const confirmarEnvioVnzl = async () => {
+    if (!pedido) return
+
+    setCreando(true)
+    try {
+      const data: Record<string, unknown> = {}
+      if (nvoCostoEnvioVnzl) data.costoEnvioVnzl = Number(nvoCostoEnvioVnzl)
+      await pedidosService.actualizar(pedido.id, data)
+      await pedidosService.avanzarEstado(pedido.id, "transito_usa_ven")
+      setEnvioVnzlDialogoAbierto(false)
+      toast.success("Pedido avanzó a En Tránsito (USA → Venezuela)")
+    } catch {
+      toast.error("Error al guardar costo de envío")
     } finally {
       setCreando(false)
     }
@@ -835,14 +861,14 @@ export default function DetallePedidoPage({
         </CardContent>
       </Card>
 
-      {(pedido.numeroGuia || pedido.servicioMensajeria || pedido.costoEnvioTotal || pedido.impuestoCompra || pedido.descuentoPedido) && (
+      {(pedido.numeroGuia || pedido.servicioMensajeria || pedido.costoEnvioTotal || pedido.costoEnvioVnzl || pedido.impuestoCompra || pedido.descuentoPedido) && (
         <Card className="card-glow">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <Package className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-bold">Detalles de Compra</h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
               {pedido.numeroGuia && (
                 <div>
                   <p className="text-xs text-muted-foreground">N° Guía</p>
@@ -859,6 +885,12 @@ export default function DetallePedidoPage({
                 <div>
                   <p className="text-xs text-muted-foreground">Costo Envío</p>
                   <p className="text-sm font-medium">{formatearMoneda(pedido.costoEnvioTotal)}</p>
+                </div>
+              )}
+              {pedido.costoEnvioVnzl != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Envío a Vnzl</p>
+                  <p className="text-sm font-medium">{formatearMoneda(pedido.costoEnvioVnzl)}</p>
                 </div>
               )}
               {pedido.impuestoCompra != null && (
@@ -992,6 +1024,38 @@ export default function DetallePedidoPage({
             </Button>
             <Button onClick={confirmarCompra} disabled={creando}>
               {creando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar compra"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={envioVnzlDialogoAbierto} onOpenChange={setEnvioVnzlDialogoAbierto}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Envío a Venezuela</DialogTitle>
+            <DialogDescription>
+              Ingresa el costo del envío desde USA a Venezuela.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Costo de envío (USD)</Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.01}
+                placeholder="0.00"
+                value={nvoCostoEnvioVnzl}
+                onChange={(e) => setNvoCostoEnvioVnzl(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setEnvioVnzlDialogoAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmarEnvioVnzl} disabled={creando}>
+              {creando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar envío"}
             </Button>
           </div>
         </DialogContent>
