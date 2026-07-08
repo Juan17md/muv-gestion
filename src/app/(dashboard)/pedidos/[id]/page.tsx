@@ -942,8 +942,8 @@ export default function DetallePedidoPage({
             <div>
               <p className="text-xs text-muted-foreground">Envío por Producto</p>
               <p className="text-lg font-bold">
-                {pedido.costoEnvioTotal != null && productos.length > 0
-                  ? formatearMoneda(pedido.costoEnvioTotal / productos.length)
+                {productos.length > 0
+                  ? formatearMoneda(((pedido.costoEnvioTotal || 0) + (pedido.costoEnvioVnzl || 0)) / productos.length)
                   : "-"}
               </p>
             </div>
