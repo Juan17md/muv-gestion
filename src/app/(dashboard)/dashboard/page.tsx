@@ -35,6 +35,7 @@ import {
   MessageCircle,
 } from "lucide-react"
 import type { Pedido, ProductoPedido, Venta, ArticuloTienda } from "@/lib/types"
+import RegistrarVentaDialog from "@/components/RegistrarVentaDialog"
 
 export default function DashboardGlobalPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([])
@@ -42,6 +43,7 @@ export default function DashboardGlobalPage() {
   const [articulos, setArticulos] = useState<ArticuloTienda[]>([])
   const [loading, setLoading] = useState(true)
   const [productosPorPedido, setProductosPorPedido] = useState<Record<string, ProductoPedido[]>>({})
+  const [ventaAbierto, setVentaAbierto] = useState(false)
 
   useEffect(() => {
     const unsubPedidos = onSnapshot(
@@ -203,7 +205,10 @@ export default function DashboardGlobalPage() {
             <ArrowRight className="h-5 w-5 text-primary ml-auto shrink-0" />
           </div>
         </Link>
-        <Link href="/tienda" className="card-glow rounded-xl p-6 hover:translate-y-[-2px] transition-all">
+        <button
+          onClick={() => setVentaAbierto(true)}
+          className="card-glow rounded-xl p-6 hover:translate-y-[-2px] transition-all text-left w-full"
+        >
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-xl bg-primary/10">
               <Receipt className="h-6 w-6 text-primary" />
@@ -214,7 +219,7 @@ export default function DashboardGlobalPage() {
             </div>
             <ArrowRight className="h-5 w-5 text-primary ml-auto shrink-0" />
           </div>
-        </Link>
+        </button>
         <Link href="/inventario" className="card-glow rounded-xl p-6 hover:translate-y-[-2px] transition-all">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-xl bg-primary/10">
@@ -359,6 +364,11 @@ export default function DashboardGlobalPage() {
           </div>
         </div>
       </div>
+      <RegistrarVentaDialog
+        articulosEnStock={enStock}
+        open={ventaAbierto}
+        onOpenChange={setVentaAbierto}
+      />
     </div>
   )
 }
