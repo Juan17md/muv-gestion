@@ -51,12 +51,15 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden lg:flex flex-col w-[240px] min-h-screen border-r bg-background/50 backdrop-blur-xl fixed left-0 top-0 z-40">
-      <div className="flex items-center gap-3 px-6 py-8">
-        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-          <span className="text-primary font-black text-lg">M</span>
+    <aside className="hidden lg:flex flex-col w-[240px] min-h-screen border-r bg-background/50 dark:bg-[oklch(0.14_0.025_290/0.75)] backdrop-blur-xl fixed left-0 top-0 z-40">
+      <div className="flex items-center justify-between px-6 py-8">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <span className="text-primary font-black text-lg">M</span>
+          </div>
+          <span className="font-bold text-lg tracking-tight">Müv</span>
         </div>
-        <span className="font-bold text-lg tracking-tight">Müv</span>
+        <ToggleTema />
       </div>
 
       <nav className="flex-1 px-3 space-y-6">
@@ -89,8 +92,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="px-3 py-4 border-t space-y-1">
-        <ToggleTema />
+      <div className="px-3 py-4 border-t">
         <button
           onClick={cerrarSesion}
           className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200"
