@@ -96,7 +96,7 @@ export default function DetallePedidoPage({
   const [nvoNombre, setNvoNombre] = useState("")
   const [nvoCantidad, setNvoCantidad] = useState("")
   const [nvoPrecio, setNvoPrecio] = useState("")
-  const [nvoMargen, setNvoMargen] = useState("")
+  const [nvoDescuento, setNvoDescuento] = useState("")
   const [nvoCliente, setNvoCliente] = useState("")
   const [nvoEnvio, setNvoEnvio] = useState("")
   const [nvoPrecioVenta, setNvoPrecioVenta] = useState("")
@@ -127,7 +127,14 @@ export default function DetallePedidoPage({
     const unsubProds = onSnapshot(
       query(collection(db, "pedidos", id, "productos"), orderBy("creadoEn")),
       (snap) => {
-        setProductos(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ProductoPedido)))
+        setProductos(snap.docs.map((d) => {
+          const data = d.data()
+          const raw = data as Record<string, unknown>
+          if (raw.margen !== undefined && raw.descuento === undefined) {
+            raw.descuento = raw.margen
+          }
+          return { id: d.id, ...raw } as ProductoPedido
+        }))
       }
     )
 
@@ -268,8 +275,8 @@ export default function DetallePedidoPage({
     const cantidad = Number(nvoCantidad) || 0
     const precioUnitario = Number(nvoPrecio) || 0
     const envio = Number(nvoEnvio) || 0
-    const margen = Number(nvoMargen) || 0
-    const precioPorArticulo = cantidad > 0 ? (cantidad * precioUnitario + envio - margen) / cantidad : 0
+    const descuento = Number(nvoDescuento) || 0
+    const precioPorArticulo = cantidad > 0 ? (cantidad * precioUnitario + envio - descuento) / cantidad : 0
     const precioVenta = nvoPrecioVenta ? Number(nvoPrecioVenta) : undefined
 
     if (nvoTipo === "cliente" && precioVenta !== undefined && precioVenta < precioPorArticulo) {
@@ -290,7 +297,7 @@ export default function DetallePedidoPage({
       }
       if (precioVenta !== undefined) data.precioVenta = precioVenta
       if (envio) data.envioCliente = envio
-      if (nvoTipo === "cliente") data.margen = margen
+      data.descuento = descuento
       if (estadoPago === "parcial") {
         data.montoPagado = Number(nvoMontoPagado) || 0
       }
@@ -331,7 +338,7 @@ export default function DetallePedidoPage({
     setNvoNombre("")
     setNvoCantidad("")
     setNvoPrecio("")
-    setNvoMargen("")
+    setNvoDescuento("")
     setNvoCliente("")
     setNvoEnvio("")
     setNvoPrecioVenta("")
@@ -344,7 +351,7 @@ export default function DetallePedidoPage({
     setNvoNombre(prod.nombre)
     setNvoCantidad(String(prod.cantidad))
     setNvoPrecio(String(prod.precioUnitario))
-    setNvoMargen(prod.margen ? String(prod.margen) : "")
+    setNvoDescuento(prod.descuento != null ? String(prod.descuento) : "")
     setNvoCliente(prod.clienteNombre || "")
     setNvoEnvio(prod.envioCliente ? String(prod.envioCliente) : "")
     setNvoPrecioVenta(prod.precioVenta ? String(prod.precioVenta) : "")
@@ -540,8 +547,8 @@ export default function DetallePedidoPage({
                             min={0}
                             step={0.01}
                             placeholder="0.00"
-                            value={nvoMargen}
-                            onChange={(e) => setNvoMargen(e.target.value)}
+                            value={nvoDescuento}
+                            onChange={(e) => setNvoDescuento(e.target.value)}
                           />
                         </div>
                         <div className="space-y-3">
@@ -583,10 +590,10 @@ export default function DetallePedidoPage({
                           <span className="text-muted-foreground">Envío</span>
                           <span>+{formatearMoneda(Number(nvoEnvio) || 0)}</span>
                         </div>
-                        {Number(nvoMargen) > 0 && (
+                        {Number(nvoDescuento) > 0 && (
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Descuento</span>
-                            <span className="text-green-600">-{formatearMoneda(Number(nvoMargen))}</span>
+                            <span className="text-green-600">-{formatearMoneda(Number(nvoDescuento))}</span>
                           </div>
                         )}
                         <div className="flex justify-between font-medium border-t pt-2 mt-2">
@@ -595,7 +602,7 @@ export default function DetallePedidoPage({
                             {formatearMoneda(
                               (Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
                               (Number(nvoEnvio) || 0) -
-                              (Number(nvoMargen) || 0)
+                              (Number(nvoDescuento) || 0)
                             )}
                           </span>
                         </div>
@@ -606,7 +613,7 @@ export default function DetallePedidoPage({
                               Number(nvoCantidad) > 0
                                 ? ((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
                                     (Number(nvoEnvio) || 0) -
-                                    (Number(nvoMargen) || 0)) / Number(nvoCantidad)
+                                    (Number(nvoDescuento) || 0)) / Number(nvoCantidad)
                                 : 0
                             )}
                           </span>
@@ -743,8 +750,8 @@ export default function DetallePedidoPage({
                         </TableCell>
                         <TableCell className="text-right font-medium">{formatearMoneda(totalProd)}</TableCell>
                         <TableCell className="text-right text-green-600">
-                          {prod.margen != null
-                            ? formatearMoneda(prod.margen)
+                          {prod.descuento != null
+                            ? formatearMoneda(prod.descuento)
                             : !esInventario
                               ? formatearMoneda(0)
                               : "-"}
@@ -753,7 +760,7 @@ export default function DetallePedidoPage({
                           {prod.envioCliente ? formatearMoneda(prod.envioCliente) : "-"}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {formatearMoneda(totalProd + (prod.envioCliente || 0) - (prod.margen || 0))}
+                          {formatearMoneda(totalProd + (prod.envioCliente || 0) - (prod.descuento || 0))}
                         </TableCell>
                         <TableCell>
                           {!prod.retirado && (
@@ -892,7 +899,7 @@ export default function DetallePedidoPage({
                       (s, p) =>
                         s +
                         p.precioUnitario * p.cantidad +
-                        (p.margen || 0) -
+                        (p.descuento || 0) -
                         (p.montoPagado || 0),
                       0
                     )

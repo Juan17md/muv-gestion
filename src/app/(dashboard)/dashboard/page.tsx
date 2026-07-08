@@ -92,7 +92,7 @@ export default function DashboardGlobalPage() {
       sum +
       prods
         .filter((pr) => pr.estadoPago !== "pagado")
-        .reduce((s, pr) => s + (pr.precioUnitario * pr.cantidad + (pr.margen || 0) - (pr.montoPagado || 0)), 0)
+        .reduce((s, pr) => s + (pr.precioUnitario * pr.cantidad + (pr.descuento || 0) - (pr.montoPagado || 0)), 0)
     )
   }, 0)
 

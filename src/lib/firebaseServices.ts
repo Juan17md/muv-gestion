@@ -126,7 +126,13 @@ export const productosService = {
   async listar(pedidoId: string): Promise<ProductoPedido[]> {
     const q = query(this.ref(pedidoId), orderBy("creadoEn"))
     const snap = await getDocs(q)
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as ProductoPedido))
+    return snap.docs.map((d) => {
+      const data = d.data() as Record<string, unknown>
+      if (data.margen !== undefined && data.descuento === undefined) {
+        data.descuento = data.margen
+      }
+      return { id: d.id, ...data } as ProductoPedido
+    })
   },
 
   async agregar(pedidoId: string, data: Omit<ProductoPedido, "id" | "creadoEn">) {
