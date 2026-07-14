@@ -42,7 +42,7 @@ import { es } from "date-fns/locale"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { toast } from "sonner"
-import { ShoppingCart, ChevronsUpDown, Check, Truck } from "lucide-react"
+import { ShoppingCart, ChevronsUpDown, Check, Truck, Clock } from "lucide-react"
 import type { ArticuloTienda, Venta } from "@/lib/types"
 import type { Cliente } from "@/lib/types"
 
@@ -67,6 +67,7 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
   const [metodoPago, setMetodoPago] = useState("")
   const [fechaPago, setFechaPago] = useState<Date>(new Date())
   const [estatusPago, setEstatusPago] = useState("por_pagar")
+  const [fiado, setFiado] = useState(false)
   const [deliveryIncluido, setDeliveryIncluido] = useState(false)
   const [costoDelivery, setCostoDelivery] = useState("")
   const [enviando, setEnviando] = useState(false)
@@ -78,6 +79,7 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
       setMetodoPago("")
       setFechaPago(new Date())
       setEstatusPago("por_pagar")
+      setFiado(false)
       setDeliveryIncluido(false)
       setCostoDelivery("")
       setClienteNombre("")
@@ -113,7 +115,7 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
 
   async function handleRegistrar() {
     const cantidad = Number(cantidadVenta) || 1
-    if (!articuloId || !clienteNombre.trim() || !metodoPago) {
+    if (!articuloId || !clienteNombre.trim() || (!fiado && !metodoPago)) {
       toast.error("Completa todos los campos requeridos")
       return
     }
@@ -130,10 +132,11 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
         cantidad,
         precioVenta: articulo.precioVenta,
         clienteNombre: clienteNombre.trim(),
-        metodoPago,
-        fechaPago: Timestamp.fromDate(fechaPago),
-        estatusPago,
+        metodoPago: fiado ? undefined : metodoPago,
+        fechaPago: fiado ? undefined : Timestamp.fromDate(fechaPago),
+        estatusPago: "por_pagar",
         estatusEntrega: "por_entregar",
+        fiado: fiado || undefined,
       }
       if (deliveryIncluido && Number(costoDelivery) > 0) datosVenta.costoDelivery = Number(costoDelivery)
       if (articulo.codigo) datosVenta.articuloCodigo = articulo.codigo
@@ -176,7 +179,7 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-3xl overflow-y-auto max-h-[90dvh]">
         <DialogHeader>
           <DialogTitle>Registrar Venta</DialogTitle>
           <DialogDescription>
@@ -205,17 +208,23 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-full p-0" align="start">
+                      <PopoverContent
+                        className="p-0"
+                        align="start"
+                        side="bottom"
+                        style={{ width: 'calc(var(--radix-popover-trigger-width) * 2)' }}
+                      >
                         <Command>
                           <CommandInput placeholder="Buscar artículo..." />
-                          <CommandList>
+                          <CommandList className="max-h-56 md:max-h-72">
                             <CommandEmpty>Sin resultados</CommandEmpty>
                             <CommandGroup>
-                              {articulosEnStock.map((a) => (
+                              {articulosEnStock.map((a, i) => (
                                 <CommandItem
                                   key={a.id}
                                   value={`${a.nombre} ${a.codigo || ""}`}
                                   onSelect={() => { setArticuloId(a.id); setPopoverArticulo(false) }}
+                                  className={i % 2 !== 0 ? "bg-muted/15" : ""}
                                 >
                                   <Check className={cn("mr-2 h-4 w-4", articuloId === a.id ? "opacity-100" : "opacity-0")} />
                                   <div className="flex flex-1 justify-between items-center">
@@ -274,38 +283,66 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
               )}
             </div>
 
-            <div className="space-y-3">
-              <Label>Método de pago</Label>
-              <Select value={metodoPago} onValueChange={setMetodoPago}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar método..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {METODOS_PAGO.map((m) => (
-                    <SelectItem key={m.valor} value={m.valor}>{m.etiqueta}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <Label className="cursor-pointer">Fiado</Label>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={fiado}
+                onClick={() => setFiado(!fiado)}
+                className={cn(
+                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                  fiado ? "bg-primary" : "bg-input"
+                )}
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform",
+                    fiado ? "translate-x-4" : "translate-x-0"
+                  )}
+                />
+              </button>
             </div>
 
-            <div className="space-y-3">
-              <Label>Fecha de pago</Label>
-              <Popover open={popoverCalendario} onOpenChange={setPopoverCalendario}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start h-[50px] gap-3">
-                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                    <span>{format(fechaPago, "PPP", { locale: es })}</span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={fechaPago}
-                    onSelect={(d) => { if (d) { setFechaPago(d); setPopoverCalendario(false) } }}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+            {!fiado && (
+              <div className="space-y-3">
+                <Label>Método de pago</Label>
+                <Select value={metodoPago} onValueChange={setMetodoPago}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar método..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {METODOS_PAGO.map((m) => (
+                      <SelectItem key={m.valor} value={m.valor}>{m.etiqueta}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {!fiado && (
+              <div className="space-y-3">
+                <Label>Fecha de pago</Label>
+                <Popover open={popoverCalendario} onOpenChange={setPopoverCalendario}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start h-[50px] gap-3">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                      <span>{format(fechaPago, "PPP", { locale: es })}</span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={fechaPago}
+                      onSelect={(d) => { if (d) { setFechaPago(d); setPopoverCalendario(false) } }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">

@@ -85,7 +85,6 @@ export default function DashboardGlobalPage() {
     (p) => p.estado === "transito_china_usa" || p.estado === "transito_usa_ven"
   )
   const enStock = articulos.filter((a) => a.estado === "en_stock")
-  const stockBajo = enStock.filter((a) => a.cantidad <= 2)
   const vendidos = articulos.filter((a) => a.estado === "vendido")
   const totalVendido = vendidos.reduce((s, a) => s + a.precioVenta * a.cantidad, 0)
 
@@ -107,10 +106,9 @@ export default function DashboardGlobalPage() {
   const gananciaPotencial = totalVentaArticulos - totalInvertido
 
   const metricas = [
-    { icon: Package, label: "Pedidos Activos", valor: pedidosActivos.length.toString(), color: "text-blue-600" },
-    { icon: ShoppingBag, label: "En Stock", valor: `${enStock.length}`, color: "text-emerald-600", sub: `${stockBajo.length} con stock bajo` },
-    { icon: DollarSign, label: "Por Cobrar", valor: formatearMoneda(totalPendiente + totalPorCobrarVentas), color: "text-yellow-600" },
-    { icon: TrendingUp, label: "Ganancia Total", valor: formatearMoneda(gananciasPedidos + gananciaPotencial), color: "text-primary" },
+    { icon: Package, label: "Pedidos Activos", valor: pedidosActivos.length.toString(), color: "text-blue-600", href: "/pedidos/panel" },
+    { icon: ShoppingBag, label: "En Stock", valor: `${enStock.length}`, color: "text-emerald-600", href: "/inventario" },
+    { icon: DollarSign, label: "Por Cobrar", valor: formatearMoneda(totalPendiente + totalPorCobrarVentas), color: "text-yellow-600", href: "/tienda/historial" },
   ]
 
   const pedidosRecientes = pedidos.slice(0, 5)
@@ -124,59 +122,41 @@ export default function DashboardGlobalPage() {
         <h1 className="typography-title-premium">Dashboard</h1>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {metricas.map(({ icon: Icon, label, valor, color, sub }) => (
-          <Card key={label} className="card-glow">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground font-medium">{label}</p>
-                  {loading ? (
-                    <Skeleton className="h-8 w-20" />
-                  ) : (
-                    <>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {metricas.map(({ icon: Icon, label, valor, color, href }) => (
+          <Link key={label} href={href}>
+            <Card className="card-glow cursor-pointer hover:translate-y-[-2px] transition-all">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground font-medium">{label}</p>
+                    {loading ? (
+                      <Skeleton className="h-8 w-20" />
+                    ) : (
                       <p className={`text-2xl font-bold ${color}`}>{valor}</p>
-                      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-                    </>
-                  )}
+                    )}
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-primary/10">
+                    <Icon className="h-5 w-5 text-primary" />
+                  </div>
                 </div>
-                <div className="p-2.5 rounded-xl bg-primary/10">
-                  <Icon className="h-5 w-5 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
 
-      {(pedidosActivos.filter((p) => calcularDiasEstancado(p.actualizadoEn) > DIAS_ESTANCAMIENTO).length > 0 || stockBajo.length > 0) && (
-        <div className="space-y-3">
-          {pedidosActivos.filter((p) => calcularDiasEstancado(p.actualizadoEn) > DIAS_ESTANCAMIENTO).length > 0 && (
-            <div className="glass-panel p-5 border-l-4 border-l-warning">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
-                <div>
-                  <p className="font-semibold">Pedidos Estancados</p>
-                  <p className="text-sm text-muted-foreground">
-                    {pedidosActivos.filter((p) => calcularDiasEstancado(p.actualizadoEn) > DIAS_ESTANCAMIENTO).length} pedidos sin actualizar en más de {DIAS_ESTANCAMIENTO} días
-                  </p>
-                </div>
-              </div>
+      {pedidosActivos.filter((p) => calcularDiasEstancado(p.actualizadoEn) > DIAS_ESTANCAMIENTO).length > 0 && (
+        <div className="glass-panel p-5 border-l-4 border-l-warning">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
+            <div>
+              <p className="font-semibold">Pedidos Estancados</p>
+              <p className="text-sm text-muted-foreground">
+                {pedidosActivos.filter((p) => calcularDiasEstancado(p.actualizadoEn) > DIAS_ESTANCAMIENTO).length} pedidos sin actualizar en más de {DIAS_ESTANCAMIENTO} días
+              </p>
             </div>
-          )}
-          {stockBajo.length > 0 && (
-            <div className="glass-panel p-5 border-l-4 border-l-warning">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
-                <div>
-                  <p className="font-semibold">Stock Bajo</p>
-                  <p className="text-sm text-muted-foreground">
-                    {stockBajo.length} artículo{stockBajo.length > 1 ? "s" : ""} con 2 o menos unidades — {stockBajo.map((a) => a.nombre).join(", ")}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       )}
 

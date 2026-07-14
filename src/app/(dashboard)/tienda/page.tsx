@@ -57,7 +57,6 @@ export default function TiendaDashboard() {
   const enStock = articulos.filter((a) => a.estado === "en_stock")
   const vendidos = articulos.filter((a) => a.estado === "vendido")
   const apartados = articulos.filter((a) => a.estado === "apartado")
-  const stockBajo = enStock.filter((a) => a.cantidad <= 2)
 
   const porCobrar = ventas.filter((v) => v.estatusPago === "por_pagar")
   const totalPorCobrar = porCobrar.reduce((s, v) => s + v.precioVenta * v.cantidad, 0)
@@ -115,21 +114,6 @@ export default function TiendaDashboard() {
           </Card>
         ))}
       </div>
-
-      {stockBajo.length > 0 && (
-        <div className="glass-panel p-5 border-l-4 border-l-warning">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
-            <div>
-              <p className="font-semibold">Stock Bajo</p>
-              <p className="text-sm text-muted-foreground">
-                {stockBajo.length} artículo{stockBajo.length > 1 ? "s" : ""} con 2 o menos unidades
-                — {stockBajo.map((a) => a.nombre).join(", ")}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">

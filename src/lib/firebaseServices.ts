@@ -10,7 +10,7 @@ import {
   orderBy,
   where,
   serverTimestamp,
-  type Timestamp,
+  Timestamp,
 } from "firebase/firestore"
 import { db } from "./firebase"
 import type { Cliente, Tienda, Pedido, ProductoPedido, ArticuloTienda, Venta, EstadoPedido } from "./types"
@@ -95,10 +95,10 @@ export const pedidosService = {
     return snap.exists() ? ({ id: snap.id, ...snap.data() } as Pedido) : null
   },
 
-  async crear(data: Omit<Pedido, "id" | "fechaCreacion" | "actualizadoEn">) {
+  async crear(data: Omit<Pedido, "id" | "fechaCreacion" | "actualizadoEn">, fechaCreacion?: Date) {
     return addDoc(collection(db, "pedidos"), {
       ...data,
-      fechaCreacion: ts(),
+      fechaCreacion: fechaCreacion ? Timestamp.fromDate(fechaCreacion) : ts(),
       actualizadoEn: ts(),
     })
   },

@@ -50,11 +50,11 @@ const FILTROS_ESTATUS = [
   ...ESTATUS_PAGO_VENTA.map((e) => ({ valor: e.valor, etiqueta: e.etiqueta })),
 ]
 
-export default function VentasPage() {
+export default function TiendaHistorialPage() {
   const [ventas, setVentas] = useState<Venta[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState("")
-  const [filtroEstatus, setFiltroEstatus] = useState("todos")
+  const [filtroEstatus, setFiltroEstatus] = useState("por_pagar")
   const [whatsappMap, setWhatsappMap] = useState<Record<string, string>>({})
   const [cobroDialogoAbierto, setCobroDialogoAbierto] = useState(false)
   const [ventaCobrando, setVentaCobrando] = useState<Venta | null>(null)
@@ -134,8 +134,8 @@ export default function VentasPage() {
   return (
     <div className="page-container space-y-8 animate-fade-in">
       <div>
-        <p className="typography-label text-primary">Tienda</p>
-        <h1 className="typography-title-premium">Historial de Ventas</h1>
+        <p className="typography-label text-primary">Tienda / Cobros</p>
+        <h1 className="typography-title-premium">Cobros Pendientes</h1>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 items-end">

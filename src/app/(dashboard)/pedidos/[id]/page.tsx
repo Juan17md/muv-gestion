@@ -149,6 +149,10 @@ export default function DetallePedidoPage({
   const [nvoDescuentoPedido, setNvoDescuentoPedido] = useState("")
   const [envioVnzlDialogoAbierto, setEnvioVnzlDialogoAbierto] = useState(false)
   const [nvoCostoEnvioVnzl, setNvoCostoEnvioVnzl] = useState("")
+  const [nvoNumeroGuiaVnzl, setNvoNumeroGuiaVnzl] = useState("")
+  const [nvoPeso, setNvoPeso] = useState("")
+  const [nvoVolumen, setNvoVolumen] = useState("")
+  const [nvoMedidaCaja, setNvoMedidaCaja] = useState("")
   const [fechaDialogoAbierto, setFechaDialogoAbierto] = useState(false)
   const [fechaDialogoObjetivo, setFechaDialogoObjetivo] = useState<EstadoPedido | "">("")
   const [nvoFecha, setNvoFecha] = useState("")
@@ -228,6 +232,10 @@ export default function DetallePedidoPage({
 
     if (pedido.estado === "casillero_usa" && sig === "transito_usa_ven") {
       setNvoCostoEnvioVnzl(pedido.costoEnvioVnzl != null ? String(pedido.costoEnvioVnzl) : "")
+      setNvoNumeroGuiaVnzl(pedido.numeroGuiaVnzl || "")
+      setNvoPeso(pedido.pesoLb != null ? String(pedido.pesoLb) : "")
+      setNvoVolumen(pedido.volumenLb != null ? String(pedido.volumenLb) : "")
+      setNvoMedidaCaja(pedido.medidaCaja || "")
       setNvoFecha(
         pedido.fechaTransitoVen
           ? timestampAInputDate(pedido.fechaTransitoVen)
@@ -277,6 +285,10 @@ export default function DetallePedidoPage({
     setCreando(true)
     try {
       const data: Record<string, unknown> = {
+        numeroGuiaVnzl: nvoNumeroGuiaVnzl.trim() || undefined,
+        pesoLb: nvoPeso ? Number(nvoPeso) : undefined,
+        volumenLb: nvoVolumen ? Number(nvoVolumen) : undefined,
+        medidaCaja: nvoMedidaCaja.trim() || undefined,
         fechaTransitoVen: Timestamp.fromDate(new Date(nvoFecha + "T12:00:00")),
       }
       if (nvoCostoEnvioVnzl) data.costoEnvioVnzl = Number(nvoCostoEnvioVnzl)
@@ -884,7 +896,7 @@ export default function DetallePedidoPage({
                           {formatearMoneda(prod.precioUnitario)}
                         </TableCell>
                         <TableCell className="text-right font-medium">{formatearMoneda(totalProd)}</TableCell>
-                        <TableCell className="text-right text-green-600">
+                        <TableCell className="text-right text-red-600">
                           {prod.descuento != null
                             ? formatearMoneda(prod.descuento)
                             : !esInventario
@@ -970,14 +982,14 @@ export default function DetallePedidoPage({
         </CardContent>
       </Card>
 
-      {(pedido.numeroGuia || pedido.servicioMensajeria || pedido.costoEnvioTotal || pedido.costoEnvioVnzl || pedido.impuestoCompra || pedido.descuentoPedido) && (
+      {(pedido.numeroGuia || pedido.servicioMensajeria || pedido.costoEnvioTotal || pedido.costoEnvioVnzl || pedido.impuestoCompra || pedido.descuentoPedido || pedido.numeroGuiaVnzl || pedido.pesoLb != null || pedido.volumenLb != null || pedido.medidaCaja) && (
         <Card className="card-glow">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <Package className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-bold">Detalles de Compra</h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {pedido.numeroGuia && (
                 <div>
                   <p className="text-xs text-muted-foreground">N° Guía</p>
@@ -1011,7 +1023,31 @@ export default function DetallePedidoPage({
               {pedido.descuentoPedido != null && (
                 <div>
                   <p className="text-xs text-muted-foreground">Descuento</p>
-                  <p className="text-sm font-medium text-green-600">{formatearMoneda(pedido.descuentoPedido)}</p>
+                  <p className="text-sm font-medium text-red-600">{formatearMoneda(pedido.descuentoPedido)}</p>
+                </div>
+              )}
+              {pedido.numeroGuiaVnzl && (
+                <div>
+                  <p className="text-xs text-muted-foreground">N° Guía (Vnzl)</p>
+                  <p className="text-sm font-medium">{pedido.numeroGuiaVnzl}</p>
+                </div>
+              )}
+              {pedido.pesoLb != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Peso</p>
+                  <p className="text-sm font-medium">{pedido.pesoLb} lb</p>
+                </div>
+              )}
+              {pedido.volumenLb != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Volumen</p>
+                  <p className="text-sm font-medium">{pedido.volumenLb} lb</p>
+                </div>
+              )}
+              {pedido.medidaCaja && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Medida de Caja</p>
+                  <p className="text-sm font-medium">{pedido.medidaCaja}</p>
                 </div>
               )}
             </div>
@@ -1025,7 +1061,7 @@ export default function DetallePedidoPage({
             <Wallet className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-bold">Resumen Financiero</h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <div>
               <p className="text-xs text-muted-foreground">Costo Total</p>
               <p className="text-lg font-bold">{formatearMoneda(costoTotal)}</p>
@@ -1051,14 +1087,21 @@ export default function DetallePedidoPage({
             <div>
               <p className="text-xs text-muted-foreground">Envío por Producto</p>
               <p className="text-lg font-bold">
-                {productos.length > 0
-                  ? formatearMoneda(((pedido.costoEnvioTotal || 0) + (pedido.costoEnvioVnzl || 0)) / productos.length)
-                  : "-"}
+                {(() => {
+                  const unidades = productos.reduce((s, p) => s + p.cantidad, 0)
+                  return unidades > 0
+                    ? formatearMoneda(((pedido.costoEnvioTotal || 0) + (pedido.costoEnvioVnzl || 0)) / unidades)
+                    : "-"
+                })()}
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Productos</p>
+              <p className="text-xs text-muted-foreground">Items</p>
               <p className="text-lg font-bold">{productos.length}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Productos</p>
+              <p className="text-lg font-bold">{productos.reduce((s, p) => s + p.cantidad, 0)}</p>
             </div>
           </div>
         </CardContent>
@@ -1168,28 +1211,70 @@ export default function DetallePedidoPage({
       </Dialog>
 
       <Dialog open={envioVnzlDialogoAbierto} onOpenChange={setEnvioVnzlDialogoAbierto}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Envío a Venezuela</DialogTitle>
             <DialogDescription>
-              Ingresa el costo del envío desde USA a Venezuela.
+              Ingresa los datos del envío desde USA a Venezuela.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Fecha de salida</Label>
-              <DatePicker value={nvoFecha} onChange={setNvoFecha} />
-            </div>
-            <div className="space-y-2">
-              <Label>Costo de envío (USD)</Label>
+              <Label>Número de Guía</Label>
               <Input
-                type="number"
-                min={0}
-                step={0.01}
-                placeholder="0.00"
-                value={nvoCostoEnvioVnzl}
-                onChange={(e) => setNvoCostoEnvioVnzl(e.target.value)}
+                value={nvoNumeroGuiaVnzl}
+                onChange={(e) => setNvoNumeroGuiaVnzl(e.target.value)}
+                placeholder="Ej: 1Z999AA10123456784"
               />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Peso (lb)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0.00"
+                  value={nvoPeso}
+                  onChange={(e) => setNvoPeso(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Volumen (lb)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0.00"
+                  value={nvoVolumen}
+                  onChange={(e) => setNvoVolumen(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Medida de Caja</Label>
+                <Input
+                  value={nvoMedidaCaja}
+                  onChange={(e) => setNvoMedidaCaja(e.target.value)}
+                  placeholder="Ej: 30×20×15 cm"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Fecha de salida</Label>
+                <DatePicker value={nvoFecha} onChange={setNvoFecha} />
+              </div>
+              <div className="space-y-2">
+                <Label>Costo de envío (USD)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0.00"
+                  value={nvoCostoEnvioVnzl}
+                  onChange={(e) => setNvoCostoEnvioVnzl(e.target.value)}
+                />
+              </div>
             </div>
           </div>
           <div className="flex justify-end gap-2">

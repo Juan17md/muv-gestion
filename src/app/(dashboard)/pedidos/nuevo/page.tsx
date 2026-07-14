@@ -10,8 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { toast } from "sonner"
-import { ArrowLeft, Loader2, Store } from "lucide-react"
+import { ArrowLeft, Loader2, Store, Calendar as CalendarIcon } from "lucide-react"
 import Link from "next/link"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import type { Tienda } from "@/lib/types"
 
 export default function NuevoPedidoPage() {
@@ -22,6 +26,8 @@ export default function NuevoPedidoPage() {
 
   const [tiendaSeleccionada, setTiendaSeleccionada] = useState("")
   const [nuevaTienda, setNuevaTienda] = useState("")
+  const [fechaPedido, setFechaPedido] = useState<Date>(new Date())
+  const [popoverCalendario, setPopoverCalendario] = useState(false)
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -57,7 +63,7 @@ export default function NuevoPedidoPage() {
         tiendaNombre: nombreTienda,
         estado: "borrador",
         ubicacion: "tienda",
-      })
+      }, fechaPedido)
 
       toast.success("Pedido creado")
       router.push(`/pedidos/${doc.id}`)
@@ -109,7 +115,7 @@ export default function NuevoPedidoPage() {
                   >
                     <Store className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="font-medium text-sm">{t.nombre}</p>
+                      <p className="font-medium text-sm text-foreground">{t.nombre}</p>
                       {t.notas && (
                         <p className="text-xs text-muted-foreground">{t.notas}</p>
                       )}
@@ -146,6 +152,26 @@ export default function NuevoPedidoPage() {
                 setTiendaSeleccionada("")
               }}
             />
+          </div>
+
+          <div className="space-y-3">
+            <Label>Fecha del pedido</Label>
+            <Popover open={popoverCalendario} onOpenChange={setPopoverCalendario}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start h-[50px] gap-3">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  <span>{format(fechaPedido, "PPP", { locale: es })}</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  locale={es}
+                  selected={fechaPedido}
+                  onSelect={(d) => { if (d) { setFechaPedido(d); setPopoverCalendario(false) } }}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <Button

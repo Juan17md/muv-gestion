@@ -41,11 +41,15 @@ export interface Pedido {
   estado: EstadoPedido
   ubicacion: string
   numeroGuia?: string
+  numeroGuiaVnzl?: string
   servicioMensajeria?: string
   costoEnvioTotal?: number
   costoEnvioVnzl?: number
   impuestoCompra?: number
   descuentoPedido?: number
+  pesoLb?: number
+  volumenLb?: number
+  medidaCaja?: string
   montoTotal?: number
   gananciaTotal?: number
   fechaCreacion: Timestamp
@@ -110,6 +114,7 @@ export interface Venta {
   fechaPago?: Timestamp
   estatusPago?: EstatusPagoVenta
   estatusEntrega: EstatusEntrega
+  fiado?: boolean
   creadoEn: Timestamp
   actualizadoEn: Timestamp
 }

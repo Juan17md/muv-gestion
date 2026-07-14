@@ -81,6 +81,7 @@ export default function LoginPage() {
 
         <div className="w-full max-w-sm space-y-8 animate-fade-up">
           <div className="text-center lg:text-left">
+            <p className="lg:hidden text-5xl font-black tracking-tighter mb-6">Müv</p>
             <h2 className="typography-title-premium">Bienvenida</h2>
             <p className="typography-desc-premium text-muted-foreground mt-2">
               Inicia sesión para gestionar tus pedidos
