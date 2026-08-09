@@ -67,7 +67,7 @@ describe("DetallePedidoPage", () => {
 
     await user.type(screen.getByPlaceholderText("Precio de venta"), "10")
 
-    await user.click(screen.getByRole("button", { name: /agregar al carrito/i }))
+    await user.click(screen.getByRole("button", { name: /agregar al pedido/i }))
     expect(screen.getByText("Funda")).toBeInTheDocument()
 
     await user.type(screen.getByPlaceholderText("Ej: Funda para celular"), "Cable")
@@ -75,10 +75,10 @@ describe("DetallePedidoPage", () => {
     await user.type(inputCantidad2, "3")
     const inputPrecio2 = screen.getAllByPlaceholderText("0.00")[0]
     await user.type(inputPrecio2, "2")
-    await user.click(screen.getByRole("button", { name: /agregar al carrito/i }))
+    await user.click(screen.getByRole("button", { name: /agregar al pedido/i }))
     expect(screen.getByText("Cable")).toBeInTheDocument()
 
-    await user.click(screen.getByRole("button", { name: /agregar al pedido/i }))
+    await user.click(screen.getByRole("button", { name: /guardar en el pedido \(\d+\)/i }))
     await waitFor(() => expect(addDoc).toHaveBeenCalled(), { timeout: 3000 })
     const calls = vi.mocked(addDoc).mock.calls
     const rutaProductos = calls.filter((c) => (c[0] as { ruta?: string }).ruta === "pedidos/p1/productos")

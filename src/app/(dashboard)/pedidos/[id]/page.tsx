@@ -776,7 +776,7 @@ export default function DetallePedidoPage({
                     Agregar
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-3xl overflow-y-auto max-h-[92dvh]">
+                <DialogContent className="sm:max-w-5xl overflow-y-auto max-h-[92dvh]">
                   <DialogHeader>
                     <DialogTitle>{productoEditando ? "Editar Producto" : "Agregar Producto"}</DialogTitle>
                     <DialogDescription className="sr-only">
@@ -1170,7 +1170,7 @@ export default function DetallePedidoPage({
                           disabled={creando}
                         >
                           <Plus className="h-4 w-4" />
-                          Agregar al carrito
+                          Agregar al pedido
                         </Button>
                       </div>
 
@@ -1209,7 +1209,7 @@ export default function DetallePedidoPage({
                               ))}
                             </div>
                             <div className="flex justify-between font-medium px-4 py-2.5 border-t border-border/60 text-sm">
-                              <span>Total carrito</span>
+                              <span>Total del pedido</span>
                               <span>
                                 {formatearMoneda(
                                   carritoProductos.reduce(
@@ -1224,7 +1224,7 @@ export default function DetallePedidoPage({
 
                         {carritoProductos.length === 0 && (
                           <div className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-                            Aún no has agregado productos. Completa el formulario y pulsa "Agregar al carrito".
+                            Aún no has agregado productos. Completa el formulario y pulsa "Agregar al pedido".
                           </div>
                         )}
                       </div>
@@ -1241,8 +1241,8 @@ export default function DetallePedidoPage({
                       "Guardar cambios"
                     ) : (
                       carritoProductos.length > 0
-                        ? `Agregar al pedido (${carritoProductos.length})`
-                        : "Agregar al pedido"
+                        ? `Guardar en el pedido (${carritoProductos.length})`
+                        : "Guardar en el pedido"
                     )}
                   </Button>
                 </DialogContent>
