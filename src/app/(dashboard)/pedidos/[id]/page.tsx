@@ -89,6 +89,7 @@ interface ProductoCarrito {
   envioCliente: number
   tipoProducto: "cliente" | "inventario"
   clienteNombre: string
+  clienteWhatsapp?: string
   estadoPago: string
   montoPagado?: number
 }
@@ -145,6 +146,7 @@ export default function DetallePedidoPage({
   const [nvoPrecio, setNvoPrecio] = useState("")
   const [nvoDescuento, setNvoDescuento] = useState("")
   const [nvoCliente, setNvoCliente] = useState("")
+  const [nvoTelefonoCliente, setNvoTelefonoCliente] = useState("")
   const [nvoEnvio, setNvoEnvio] = useState("")
   const [nvoPrecioVenta, setNvoPrecioVenta] = useState("")
   const [nvoTipo, setNvoTipo] = useState<"cliente" | "inventario">("cliente")
@@ -379,7 +381,7 @@ export default function DetallePedidoPage({
       await pedidosService.actualizar(pedido.id, {
         fechaEntregadoCliente: Timestamp.fromDate(new Date(nvoFecha + "T12:00:00")),
       })
-      const porCliente = new Map<string, { clienteNombre: string; clienteRef?: string; articulos: { articuloNombre: string; cantidad: number; precioVenta: number }[] }>()
+      const porCliente = new Map<string, { clienteNombre: string; clienteRef?: string; clienteWhatsapp?: string; articulos: { articuloNombre: string; cantidad: number; precioVenta: number }[] }>()
       for (const prod of pendientes) {
         if (prod.tipoProducto === "inventario" || (!prod.tipoProducto && !prod.clienteNombre)) {
           await inventarioService.crear({
@@ -392,7 +394,15 @@ export default function DetallePedidoPage({
         } else {
           const clave = prod.clienteRef || prod.clienteNombre || ""
           if (!porCliente.has(clave)) {
-            porCliente.set(clave, { clienteNombre: prod.clienteNombre || "", clienteRef: prod.clienteRef, articulos: [] })
+            porCliente.set(clave, {
+              clienteNombre: prod.clienteNombre || "",
+              clienteRef: prod.clienteRef,
+              clienteWhatsapp: prod.clienteWhatsapp,
+              articulos: [],
+            })
+          } else {
+            const grupo = porCliente.get(clave)!
+            if (!grupo.clienteWhatsapp && prod.clienteWhatsapp) grupo.clienteWhatsapp = prod.clienteWhatsapp
           }
           porCliente.get(clave)!.articulos.push({
             articuloNombre: prod.nombre,
@@ -417,6 +427,18 @@ export default function DetallePedidoPage({
           ventaData.clienteId = grupo.clienteRef
           const cliente = await clientesService.obtener(grupo.clienteRef)
           if (cliente?.whatsapp) ventaData.clienteWhatsapp = cliente.whatsapp
+        } else {
+          const clienteExistente = clientes.find((c) => c.nombre === grupo.clienteNombre)
+          if (clienteExistente) {
+            ventaData.clienteId = clienteExistente.id
+          } else if (grupo.clienteWhatsapp) {
+            const refCliente = await clientesService.crear({
+              nombre: grupo.clienteNombre,
+              whatsapp: grupo.clienteWhatsapp,
+            })
+            ventaData.clienteId = refCliente.id
+          }
+          if (grupo.clienteWhatsapp) ventaData.clienteWhatsapp = grupo.clienteWhatsapp
         }
         await ventasService.crear(ventaData as Parameters<typeof ventasService.crear>[0])
       }
@@ -483,6 +505,7 @@ export default function DetallePedidoPage({
       envioCliente: envio,
       tipoProducto: nvoTipo,
       clienteNombre: nvoTipo === "cliente" ? nvoCliente : "",
+      clienteWhatsapp: nvoTipo === "cliente" ? nvoTelefonoCliente.trim() || undefined : undefined,
       estadoPago: nvoTipo === "cliente" ? nvoEstadoPago : "sin_pagar",
       montoPagado: nvoEstadoPago === "parcial" ? Number(nvoMontoPagado) || 0 : undefined,
     }
@@ -496,6 +519,7 @@ export default function DetallePedidoPage({
     setNvoPrecioVenta("")
     setNvoEstadoPago("sin_pagar")
     setNvoMontoPagado("")
+    setNvoTelefonoCliente("")
   }
 
   const quitarDelCarrito = (indice: number) => {
@@ -529,6 +553,7 @@ export default function DetallePedidoPage({
         }
         if (nvoTipo === "cliente") {
           data.clienteNombre = nvoCliente
+          if (nvoTelefonoCliente.trim()) data.clienteWhatsapp = nvoTelefonoCliente.trim()
         } else {
           data.clienteNombre = ""
         }
@@ -567,6 +592,7 @@ export default function DetallePedidoPage({
           data.montoPagado = prod.montoPagado || 0
         }
         data.clienteNombre = prod.clienteNombre || ""
+        if (prod.clienteWhatsapp) data.clienteWhatsapp = prod.clienteWhatsapp
         await productosService.agregar(id, data as Parameters<typeof productosService.agregar>[1])
       }
       toast.success(`${carritoProductos.length} producto${carritoProductos.length > 1 ? "s" : ""} agregado${carritoProductos.length > 1 ? "s" : ""} al pedido`)
@@ -597,6 +623,7 @@ export default function DetallePedidoPage({
     setNvoPrecio("")
     setNvoDescuento("")
     setNvoCliente("")
+    setNvoTelefonoCliente("")
     setNvoEnvio("")
     setNvoPrecioVenta("")
     setNvoEstadoPago("sin_pagar")
@@ -612,6 +639,7 @@ export default function DetallePedidoPage({
     setNvoPrecio(String(prod.precioUnitario))
     setNvoDescuento(prod.descuento != null ? String(prod.descuento) : "")
     setNvoCliente(prod.clienteNombre || "")
+    setNvoTelefonoCliente(prod.clienteWhatsapp || "")
     setNvoEnvio(prod.envioCliente ? String(prod.envioCliente) : "")
     setNvoPrecioVenta(prod.precioVenta ? String(prod.precioVenta) : "")
     setNvoTipo(prod.tipoProducto === "inventario" || (!prod.tipoProducto && !prod.clienteNombre) ? "inventario" : "cliente")
@@ -907,6 +935,16 @@ export default function DetallePedidoPage({
                                 placeholder="Nombre del cliente"
                               />
                             </div>
+                            {!clientes.some((c) => c.nombre.toLowerCase() === nvoCliente.trim().toLowerCase()) && nvoCliente.trim() && (
+                              <div className="space-y-3">
+                                <Label className="text-xs text-muted-foreground">Teléfono (opcional)</Label>
+                                <Input
+                                  placeholder="Ej: 584121234567"
+                                  value={nvoTelefonoCliente}
+                                  onChange={(e) => setNvoTelefonoCliente(e.target.value)}
+                                />
+                              </div>
+                            )}
                             <div className="space-y-3">
                               <Label>Estado del pago</Label>
                               <div className="flex gap-1.5">
@@ -950,6 +988,31 @@ export default function DetallePedidoPage({
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-6 py-4">
                       <div className="md:col-span-3 space-y-4">
+                        <div className="flex rounded-lg border p-1 bg-muted">
+                          <button
+                            type="button"
+                            onClick={() => setNvoTipo("cliente")}
+                            className={cn(
+                              "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all",
+                              nvoTipo === "cliente" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <User className="h-3.5 w-3.5" />
+                            Cliente
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setNvoTipo("inventario"); setNvoTelefonoCliente("") }}
+                            className={cn(
+                              "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all",
+                              nvoTipo === "inventario" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <PackagePlus className="h-3.5 w-3.5" />
+                            Mi stock
+                          </button>
+                        </div>
+
                         {nvoTipo === "cliente" && (
                           <div className="space-y-3" ref={clienteInputRef}>
                             <Label>Cliente</Label>
@@ -968,12 +1031,22 @@ export default function DetallePedidoPage({
                                       key={c.id}
                                       type="button"
                                       className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
-                                      onClick={() => { setNvoCliente(c.nombre); setMostrarSugerenciasCliente(false) }}
+                                      onClick={() => { setNvoCliente(c.nombre); setNvoTelefonoCliente(""); setMostrarSugerenciasCliente(false) }}
                                     >
                                       <span className="font-medium">{c.nombre}</span>
                                       <span className="text-muted-foreground ml-2">{c.whatsapp}</span>
                                     </button>
                                   ))}
+                              </div>
+                            )}
+                            {!clientes.some((c) => c.nombre.toLowerCase() === nvoCliente.trim().toLowerCase()) && nvoCliente.trim() && (
+                              <div className="space-y-3">
+                                <Label className="text-xs text-muted-foreground">Teléfono (opcional)</Label>
+                                <Input
+                                  placeholder="Ej: 584121234567"
+                                  value={nvoTelefonoCliente}
+                                  onChange={(e) => setNvoTelefonoCliente(e.target.value)}
+                                />
                               </div>
                             )}
                           </div>
@@ -986,31 +1059,6 @@ export default function DetallePedidoPage({
                             onChange={(e) => setNvoNombre(e.target.value)}
                             placeholder="Ej: Funda para celular"
                           />
-                        </div>
-
-                        <div className="flex rounded-lg border p-1 bg-muted">
-                          <button
-                            type="button"
-                            onClick={() => setNvoTipo("cliente")}
-                            className={cn(
-                              "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all",
-                              nvoTipo === "cliente" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                            )}
-                          >
-                            <User className="h-3.5 w-3.5" />
-                            Cliente
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setNvoTipo("inventario")}
-                            className={cn(
-                              "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all",
-                              nvoTipo === "inventario" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                            )}
-                          >
-                            <PackagePlus className="h-3.5 w-3.5" />
-                            Mi stock
-                          </button>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">

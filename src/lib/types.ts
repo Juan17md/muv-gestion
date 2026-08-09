@@ -27,6 +27,7 @@ export interface ProductoPedido {
   envioCliente?: number
   clienteRef?: string
   clienteNombre: string
+  clienteWhatsapp?: string
   tipoProducto?: "cliente" | "inventario"
   retirado?: boolean
   estadoPago: "sin_pagar" | "parcial" | "pagado"

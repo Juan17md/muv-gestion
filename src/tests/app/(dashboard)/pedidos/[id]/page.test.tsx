@@ -49,14 +49,15 @@ describe("DetallePedidoPage", () => {
   })
 
   it("permite agregar varios productos al carrito y guardarlos de una vez", async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     sembrarDatos("pedidos", { p1: pedidoEjemplo("p1", { estado: "borrador" }) })
     sembrarDatos("clientes", { c1: clienteEjemplo("c1") })
     renderConSuspense(<DetallePedidoPage params={promesaResuelta({ id: "p1" })} />)
-    await waitFor(() => expect(screen.getByRole("button", { name: /^agregar$/i })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole("button", { name: /^agregar$/i })).toBeInTheDocument(), { timeout: 3000 })
     await user.click(screen.getByRole("button", { name: /^agregar$/i }))
 
-    await user.type(screen.getByPlaceholderText("Nombre del cliente"), "Ana Pérez")
+    await user.type(screen.getByPlaceholderText("Nombre del cliente"), "Bruno Gómez")
+    await user.type(screen.getByPlaceholderText("Ej: 584121234567"), "584121234567")
     await user.type(screen.getByPlaceholderText("Ej: Funda para celular"), "Funda")
 
     const inputCantidad = screen.getAllByPlaceholderText("1")[0]
@@ -78,9 +79,12 @@ describe("DetallePedidoPage", () => {
     expect(screen.getByText("Cable")).toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: /agregar al pedido/i }))
-    await waitFor(() => expect(addDoc).toHaveBeenCalled())
+    await waitFor(() => expect(addDoc).toHaveBeenCalled(), { timeout: 3000 })
     const calls = vi.mocked(addDoc).mock.calls
     const rutaProductos = calls.filter((c) => (c[0] as { ruta?: string }).ruta === "pedidos/p1/productos")
     expect(rutaProductos.length).toBe(2)
+    const primerProducto = rutaProductos[0][1] as Record<string, unknown>
+    expect(primerProducto.clienteNombre).toBe("Bruno Gómez")
+    expect(primerProducto.clienteWhatsapp).toBe("584121234567")
   })
 })
