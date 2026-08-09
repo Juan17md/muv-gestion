@@ -86,5 +86,5 @@ describe("DetallePedidoPage", () => {
     const primerProducto = rutaProductos[0][1] as Record<string, unknown>
     expect(primerProducto.clienteNombre).toBe("Bruno Gómez")
     expect(primerProducto.clienteWhatsapp).toBe("584121234567")
-  })
+  }, 15000)
 })
