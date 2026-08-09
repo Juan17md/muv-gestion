@@ -410,15 +410,16 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
 
             {carrito.length > 0 && (
               <div className="rounded-lg border bg-muted/50 overflow-hidden">
-                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-4 py-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60">
+                <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60">
                   <span>Artículo</span>
                   <span className="text-right">Cant.</span>
+                  <span className="text-right">Precio orig.</span>
                   <span className="text-right">Precio</span>
                   <span className="text-right">Subtotal</span>
                 </div>
                 <div className="divide-y divide-border/60">
                   {carrito.map((linea) => (
-                    <div key={linea.articuloId} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center px-4 py-3 text-sm">
+                    <div key={linea.articuloId} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 items-center px-4 py-3 text-sm">
                       <div className="min-w-0">
                         <p className="font-medium truncate">{linea.articuloNombre}</p>
                         {(linea.descuento || linea.descuentoMonto) && (
@@ -428,15 +429,11 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
                         )}
                       </div>
                       <span className="text-right tabular-nums">{linea.cantidad}</span>
-                      <span className="text-right tabular-nums">
-                        {linea.descuento || linea.descuentoMonto ? (
-                          <span className="space-x-1.5">
-                            <span className="text-muted-foreground line-through">{formatearMoneda(linea.precioVenta)}</span>
-                            <span className="text-primary">{formatearMoneda(obtenerPrecioConDescuento(linea))}</span>
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">{formatearMoneda(linea.precioVenta)}</span>
-                        )}
+                      <span className="text-right tabular-nums text-muted-foreground">
+                        {formatearMoneda(linea.precioVenta)}
+                      </span>
+                      <span className="text-right tabular-nums text-primary">
+                        {formatearMoneda(obtenerPrecioConDescuento(linea))}
                       </span>
                       <div className="flex items-center justify-end gap-3">
                         <span className="font-semibold tabular-nums">
