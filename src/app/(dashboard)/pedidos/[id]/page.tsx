@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, use, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { doc, onSnapshot, collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { pedidosService, productosService, ventasService, inventarioService } from "@/lib/firebaseServices"
+import { pedidosService, productosService, ventasService, inventarioService, clientesService } from "@/lib/firebaseServices"
 import {
   formatearMoneda,
   formatearFecha,
@@ -78,7 +78,21 @@ import {
   CalendarIcon,
 } from "lucide-react"
 import Link from "next/link"
-import type { Pedido, ProductoPedido, ArticuloTienda, EstadoPedido } from "@/lib/types"
+import type { Pedido, ProductoPedido, ArticuloTienda, EstadoPedido, Cliente } from "@/lib/types"
+
+interface ProductoCarrito {
+  nombre: string
+  cantidad: number
+  precioUnitario: number
+  precioVenta?: number
+  descuento: number
+  envioCliente: number
+  tipoProducto: "cliente" | "inventario"
+  clienteNombre: string
+  clienteWhatsapp?: string
+  estadoPago: string
+  montoPagado?: number
+}
 
 function DatePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const date = value ? new Date(value + "T12:00:00") : undefined
@@ -132,12 +146,17 @@ export default function DetallePedidoPage({
   const [nvoPrecio, setNvoPrecio] = useState("")
   const [nvoDescuento, setNvoDescuento] = useState("")
   const [nvoCliente, setNvoCliente] = useState("")
+  const [nvoTelefonoCliente, setNvoTelefonoCliente] = useState("")
   const [nvoEnvio, setNvoEnvio] = useState("")
   const [nvoPrecioVenta, setNvoPrecioVenta] = useState("")
   const [nvoTipo, setNvoTipo] = useState<"cliente" | "inventario">("cliente")
   const [nvoEstadoPago, setNvoEstadoPago] = useState<string>("sin_pagar")
   const [nvoMontoPagado, setNvoMontoPagado] = useState("")
   const [creando, setCreando] = useState(false)
+  const [carritoProductos, setCarritoProductos] = useState<ProductoCarrito[]>([])
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [mostrarSugerenciasCliente, setMostrarSugerenciasCliente] = useState(false)
+  const clienteInputRef = useRef<HTMLDivElement>(null)
   const [retiroDialogoAbierto, setRetiroDialogoAbierto] = useState(false)
   const [whatsappMap, setWhatsappMap] = useState<Record<string, string>>({})
   const [productoEditando, setProductoEditando] = useState<string | null>(null)
@@ -193,11 +212,24 @@ export default function DetallePedidoPage({
   useEffect(() => {
     getDocs(query(collection(db, "clientes"), orderBy("nombre"))).then((snap) => {
       const mapa: Record<string, string> = {}
+      const lista: Cliente[] = []
       snap.docs.forEach((d) => {
         mapa[d.id] = d.data().whatsapp || ""
+        lista.push({ id: d.id, ...d.data() } as Cliente)
       })
       setWhatsappMap(mapa)
+      setClientes(lista)
     })
+  }, [])
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (clienteInputRef.current && !clienteInputRef.current.contains(e.target as Node)) {
+        setMostrarSugerenciasCliente(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
   }, [])
 
   const avanzarEstado = async () => {
@@ -349,6 +381,7 @@ export default function DetallePedidoPage({
       await pedidosService.actualizar(pedido.id, {
         fechaEntregadoCliente: Timestamp.fromDate(new Date(nvoFecha + "T12:00:00")),
       })
+      const porCliente = new Map<string, { clienteNombre: string; clienteRef?: string; clienteWhatsapp?: string; articulos: { articuloNombre: string; cantidad: number; precioVenta: number }[] }>()
       for (const prod of pendientes) {
         if (prod.tipoProducto === "inventario" || (!prod.tipoProducto && !prod.clienteNombre)) {
           await inventarioService.crear({
@@ -359,21 +392,55 @@ export default function DetallePedidoPage({
             estado: "en_stock",
           })
         } else {
-          const ventaData: Record<string, unknown> = {
+          const clave = prod.clienteRef || prod.clienteNombre || ""
+          if (!porCliente.has(clave)) {
+            porCliente.set(clave, {
+              clienteNombre: prod.clienteNombre || "",
+              clienteRef: prod.clienteRef,
+              clienteWhatsapp: prod.clienteWhatsapp,
+              articulos: [],
+            })
+          } else {
+            const grupo = porCliente.get(clave)!
+            if (!grupo.clienteWhatsapp && prod.clienteWhatsapp) grupo.clienteWhatsapp = prod.clienteWhatsapp
+          }
+          porCliente.get(clave)!.articulos.push({
             articuloNombre: prod.nombre,
             cantidad: prod.cantidad,
             precioVenta: prod.precioVenta || prod.precioUnitario * prod.cantidad,
-            clienteNombre: prod.clienteNombre || "",
-            estatusEntrega: "por_entregar",
-            estatusPago: "por_pagar",
-          }
-          if (prod.clienteRef) ventaData.clienteId = prod.clienteRef
-          await ventasService.crear(ventaData as Parameters<typeof ventasService.crear>[0])
+          })
         }
 
         if (prod.id) {
           await productosService.actualizar(pedido.id, prod.id, { retirado: true })
         }
+      }
+
+      for (const grupo of porCliente.values()) {
+        const ventaData: Record<string, unknown> = {
+          articulos: grupo.articulos,
+          clienteNombre: grupo.clienteNombre,
+          estatusEntrega: "por_entregar",
+          estatusPago: "por_pagar",
+        }
+        if (grupo.clienteRef) {
+          ventaData.clienteId = grupo.clienteRef
+          const cliente = await clientesService.obtener(grupo.clienteRef)
+          if (cliente?.whatsapp) ventaData.clienteWhatsapp = cliente.whatsapp
+        } else {
+          const clienteExistente = clientes.find((c) => c.nombre === grupo.clienteNombre)
+          if (clienteExistente) {
+            ventaData.clienteId = clienteExistente.id
+          } else if (grupo.clienteWhatsapp) {
+            const refCliente = await clientesService.crear({
+              nombre: grupo.clienteNombre,
+              whatsapp: grupo.clienteWhatsapp,
+            })
+            ventaData.clienteId = refCliente.id
+          }
+          if (grupo.clienteWhatsapp) ventaData.clienteWhatsapp = grupo.clienteWhatsapp
+        }
+        await ventasService.crear(ventaData as Parameters<typeof ventasService.crear>[0])
       }
 
       await pedidosService.avanzarEstado(pedido.id, "entregado_cliente")
@@ -392,62 +459,148 @@ export default function DetallePedidoPage({
     toast.success("Estado retrocedido")
   }
 
-  const agregarProducto = async () => {
+  const validarProductoForm = (): boolean => {
     if (!nvoNombre) {
       toast.error("El nombre del producto es requerido")
-      return
+      return false
     }
     if (nvoTipo === "cliente" && !nvoCliente) {
       toast.error("El nombre del cliente es requerido")
-      return
+      return false
     }
+
+    const cantidad = Number(nvoCantidad) || 0
+    if (cantidad <= 0) {
+      toast.error("La cantidad debe ser mayor a 0")
+      return false
+    }
+    const precioUnitario = Number(nvoPrecio) || 0
+    const envio = Number(nvoEnvio) || 0
+    const descuento = Number(nvoDescuento) || 0
+    const precioPorArticulo = (cantidad * precioUnitario + envio - descuento) / cantidad
+    const precioVenta = nvoPrecioVenta ? Number(nvoPrecioVenta) : undefined
+
+    if (nvoTipo === "cliente" && precioVenta !== undefined && precioVenta < precioPorArticulo) {
+      toast.error("El precio de venta no puede ser menor al precio por artículo")
+      return false
+    }
+    return true
+  }
+
+  const agregarAlCarrito = () => {
+    if (!validarProductoForm()) return
 
     const cantidad = Number(nvoCantidad) || 0
     const precioUnitario = Number(nvoPrecio) || 0
     const envio = Number(nvoEnvio) || 0
     const descuento = Number(nvoDescuento) || 0
-    const precioPorArticulo = cantidad > 0 ? (cantidad * precioUnitario + envio - descuento) / cantidad : 0
     const precioVenta = nvoPrecioVenta ? Number(nvoPrecioVenta) : undefined
 
-    if (nvoTipo === "cliente" && precioVenta !== undefined && precioVenta < precioPorArticulo) {
-      toast.error("El precio de venta no puede ser menor al precio por artículo")
-      setCreando(false)
+    const nuevoProducto: ProductoCarrito = {
+      nombre: nvoNombre,
+      cantidad,
+      precioUnitario,
+      precioVenta,
+      descuento,
+      envioCliente: envio,
+      tipoProducto: nvoTipo,
+      clienteNombre: nvoTipo === "cliente" ? nvoCliente : "",
+      clienteWhatsapp: nvoTipo === "cliente" ? nvoTelefonoCliente.trim() || undefined : undefined,
+      estadoPago: nvoTipo === "cliente" ? nvoEstadoPago : "sin_pagar",
+      montoPagado: nvoEstadoPago === "parcial" ? Number(nvoMontoPagado) || 0 : undefined,
+    }
+
+    setCarritoProductos((prev) => [...prev, nuevoProducto])
+    setNvoNombre("")
+    setNvoCantidad("")
+    setNvoPrecio("")
+    setNvoDescuento("")
+    setNvoEnvio("")
+    setNvoPrecioVenta("")
+    setNvoEstadoPago("sin_pagar")
+    setNvoMontoPagado("")
+    setNvoTelefonoCliente("")
+  }
+
+  const quitarDelCarrito = (indice: number) => {
+    setCarritoProductos((prev) => prev.filter((_, i) => i !== indice))
+  }
+
+  const agregarProducto = async () => {
+    if (productoEditando) {
+      if (!validarProductoForm()) return
+      const cantidad = Number(nvoCantidad) || 0
+      const precioUnitario = Number(nvoPrecio) || 0
+      const envio = Number(nvoEnvio) || 0
+      const descuento = Number(nvoDescuento) || 0
+      const precioVenta = nvoPrecioVenta ? Number(nvoPrecioVenta) : undefined
+
+      setCreando(true)
+      try {
+        const estadoPago = nvoTipo === "cliente" ? nvoEstadoPago : "sin_pagar"
+        const data: Record<string, unknown> = {
+          nombre: nvoNombre,
+          cantidad,
+          precioUnitario,
+          tipoProducto: nvoTipo,
+          estadoPago,
+        }
+        if (precioVenta !== undefined) data.precioVenta = precioVenta
+        if (envio) data.envioCliente = envio
+        data.descuento = descuento
+        if (estadoPago === "parcial") {
+          data.montoPagado = Number(nvoMontoPagado) || 0
+        }
+        if (nvoTipo === "cliente") {
+          data.clienteNombre = nvoCliente
+          if (nvoTelefonoCliente.trim()) data.clienteWhatsapp = nvoTelefonoCliente.trim()
+        } else {
+          data.clienteNombre = ""
+        }
+
+        await productosService.actualizar(id, productoEditando, data)
+        toast.success("Producto actualizado")
+        limpiarFormulario()
+        setDialogoAbierto(false)
+      } catch {
+        toast.error("Error al guardar producto")
+      } finally {
+        setCreando(false)
+      }
+      return
+    }
+
+    if (carritoProductos.length === 0) {
+      toast.error("Agrega al menos un producto al carrito")
       return
     }
 
     setCreando(true)
     try {
-      const estadoPago = nvoTipo === "cliente" ? nvoEstadoPago : "sin_pagar"
-      const data: Record<string, unknown> = {
-        nombre: nvoNombre,
-        cantidad,
-        precioUnitario,
-        tipoProducto: nvoTipo,
-        estadoPago,
-      }
-      if (precioVenta !== undefined) data.precioVenta = precioVenta
-      if (envio) data.envioCliente = envio
-      data.descuento = descuento
-      if (estadoPago === "parcial") {
-        data.montoPagado = Number(nvoMontoPagado) || 0
-      }
-      if (nvoTipo === "cliente") {
-        data.clienteNombre = nvoCliente
-      } else {
-        data.clienteNombre = ""
-      }
-
-      if (productoEditando) {
-        await productosService.actualizar(id, productoEditando, data)
-        toast.success("Producto actualizado")
-      } else {
+      for (const prod of carritoProductos) {
+        const data: Record<string, unknown> = {
+          nombre: prod.nombre,
+          cantidad: prod.cantidad,
+          precioUnitario: prod.precioUnitario,
+          tipoProducto: prod.tipoProducto,
+          estadoPago: prod.estadoPago,
+        }
+        if (prod.precioVenta !== undefined) data.precioVenta = prod.precioVenta
+        if (prod.envioCliente) data.envioCliente = prod.envioCliente
+        data.descuento = prod.descuento
+        if (prod.estadoPago === "parcial") {
+          data.montoPagado = prod.montoPagado || 0
+        }
+        data.clienteNombre = prod.clienteNombre || ""
+        if (prod.clienteWhatsapp) data.clienteWhatsapp = prod.clienteWhatsapp
         await productosService.agregar(id, data as Parameters<typeof productosService.agregar>[1])
-        toast.success("Producto agregado")
       }
+      toast.success(`${carritoProductos.length} producto${carritoProductos.length > 1 ? "s" : ""} agregado${carritoProductos.length > 1 ? "s" : ""} al pedido`)
       limpiarFormulario()
+      setCarritoProductos([])
       setDialogoAbierto(false)
     } catch {
-      toast.error("Error al guardar producto")
+      toast.error("Error al guardar productos")
     } finally {
       setCreando(false)
     }
@@ -470,19 +623,23 @@ export default function DetallePedidoPage({
     setNvoPrecio("")
     setNvoDescuento("")
     setNvoCliente("")
+    setNvoTelefonoCliente("")
     setNvoEnvio("")
     setNvoPrecioVenta("")
     setNvoEstadoPago("sin_pagar")
     setNvoMontoPagado("")
+    setCarritoProductos([])
     setProductoEditando(null)
   }
 
   const abrirEdicion = (prod: ProductoPedido) => {
+    setCarritoProductos([])
     setNvoNombre(prod.nombre)
     setNvoCantidad(String(prod.cantidad))
     setNvoPrecio(String(prod.precioUnitario))
     setNvoDescuento(prod.descuento != null ? String(prod.descuento) : "")
     setNvoCliente(prod.clienteNombre || "")
+    setNvoTelefonoCliente(prod.clienteWhatsapp || "")
     setNvoEnvio(prod.envioCliente ? String(prod.envioCliente) : "")
     setNvoPrecioVenta(prod.precioVenta ? String(prod.precioVenta) : "")
     setNvoTipo(prod.tipoProducto === "inventario" || (!prod.tipoProducto && !prod.clienteNombre) ? "inventario" : "cliente")
@@ -619,165 +776,354 @@ export default function DetallePedidoPage({
                     Agregar
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl">
+                <DialogContent className="sm:max-w-5xl overflow-y-auto max-h-[92dvh]">
                   <DialogHeader>
                     <DialogTitle>{productoEditando ? "Editar Producto" : "Agregar Producto"}</DialogTitle>
                     <DialogDescription className="sr-only">
-                      {productoEditando ? "Edita el producto en el pedido" : "Agrega un producto al pedido"}
+                      {productoEditando ? "Edita el producto en el pedido" : "Agrega uno o varios productos al pedido"}
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-6 py-4">
-                    <div className="md:col-span-3 space-y-4">
-                      <div className="space-y-3">
-                        <Label>Nombre del producto</Label>
-                        <Input
-                          value={nvoNombre}
-                          onChange={(e) => setNvoNombre(e.target.value)}
-                          placeholder="Ej: Funda para celular"
-                        />
-                      </div>
-
-                      <div className="flex rounded-lg border p-1 bg-muted">
-                        <button
-                          type="button"
-                          onClick={() => setNvoTipo("cliente")}
-                          className={cn(
-                            "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all",
-                            nvoTipo === "cliente" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          <User className="h-3.5 w-3.5" />
-                          Cliente
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setNvoTipo("inventario")}
-                          className={cn(
-                            "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all",
-                            nvoTipo === "inventario" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          <PackagePlus className="h-3.5 w-3.5" />
-                          Mi stock
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
+                  {productoEditando ? (
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-6 py-4">
+                      <div className="md:col-span-3 space-y-4">
                         <div className="space-y-3">
-                          <Label>Cantidad</Label>
+                          <Label>Nombre del producto</Label>
                           <Input
-                            type="number"
-                            min={1}
-                            placeholder="1"
-                            value={nvoCantidad}
-                            onChange={(e) => setNvoCantidad(e.target.value)}
+                            value={nvoNombre}
+                            onChange={(e) => setNvoNombre(e.target.value)}
+                            placeholder="Ej: Funda para celular"
                           />
                         </div>
-                        <div className="space-y-3">
-                          <Label>Precio unitario (USD)</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            placeholder="0.00"
-                            value={nvoPrecio}
-                            onChange={(e) => setNvoPrecio(e.target.value)}
-                          />
-                        </div>
-                      </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-3">
-                          <Label>Descuento (USD)</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            placeholder="0.00"
-                            value={nvoDescuento}
-                            onChange={(e) => setNvoDescuento(e.target.value)}
-                          />
+                        <div className="flex rounded-lg border p-1 bg-muted">
+                          <button
+                            type="button"
+                            onClick={() => setNvoTipo("cliente")}
+                            className={cn(
+                              "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all",
+                              nvoTipo === "cliente" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <User className="h-3.5 w-3.5" />
+                            Cliente
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNvoTipo("inventario")}
+                            className={cn(
+                              "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all",
+                              nvoTipo === "inventario" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <PackagePlus className="h-3.5 w-3.5" />
+                            Mi stock
+                          </button>
                         </div>
-                        <div className="space-y-3">
-                          <Label>{nvoTipo === "inventario" ? "Otros (USD)" : "Precio de envío (USD)"}</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            placeholder="0.00"
-                            value={nvoEnvio}
-                            onChange={(e) => setNvoEnvio(e.target.value)}
-                          />
-                        </div>
-                      </div>
 
-                      {Number(nvoCantidad) > 0 && nvoTipo === "cliente" && (
-                        <div className="space-y-3">
-                          <Label>Precio de venta</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="Precio de venta"
-                            value={nvoPrecioVenta}
-                            onChange={(e) => setNvoPrecioVenta(e.target.value)}
-                          />
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-3">
+                            <Label>Cantidad</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              placeholder="1"
+                              value={nvoCantidad}
+                              onChange={(e) => setNvoCantidad(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <Label>Precio unitario (USD)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              placeholder="0.00"
+                              value={nvoPrecio}
+                              onChange={(e) => setNvoPrecio(e.target.value)}
+                            />
+                          </div>
                         </div>
-                      )}
 
-                    </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-3">
+                            <Label>Descuento (USD)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              placeholder="0.00"
+                              value={nvoDescuento}
+                              onChange={(e) => setNvoDescuento(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <Label>{nvoTipo === "inventario" ? "Otros (USD)" : "Precio de envío (USD)"}</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              placeholder="0.00"
+                              value={nvoEnvio}
+                              onChange={(e) => setNvoEnvio(e.target.value)}
+                            />
+                          </div>
+                        </div>
 
-                    <div className="md:col-span-2">
-                      <div className="rounded-lg border bg-muted/50 px-4 py-3 text-sm space-y-2 sticky top-4">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Resumen</p>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Subtotal</span>
-                          <span>{formatearMoneda((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Envío</span>
-                          <span>+{formatearMoneda(Number(nvoEnvio) || 0)}</span>
-                        </div>
-                        {Number(nvoDescuento) > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Descuento</span>
-                            <span className="text-green-600">-{formatearMoneda(Number(nvoDescuento))}</span>
+                        {Number(nvoCantidad) > 0 && nvoTipo === "cliente" && (
+                          <div className="space-y-3">
+                            <Label>Precio de venta</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="Precio de venta"
+                              value={nvoPrecioVenta}
+                              onChange={(e) => setNvoPrecioVenta(e.target.value)}
+                            />
                           </div>
                         )}
-                        <div className="flex justify-between font-medium border-t pt-2 mt-2">
-                          <span>Total</span>
-                          <span>
-                            {formatearMoneda(
-                              (Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
-                              (Number(nvoEnvio) || 0) -
-                              (Number(nvoDescuento) || 0)
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-primary font-semibold pt-1">
-                          <span>Precio por artículo</span>
-                          <span>
-                            {formatearMoneda(
-                              Number(nvoCantidad) > 0
-                                ? ((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
-                                    (Number(nvoEnvio) || 0) -
-                                    (Number(nvoDescuento) || 0)) / Number(nvoCantidad)
-                                : 0
-                            )}
-                          </span>
-                        </div>
                       </div>
 
-                      {nvoTipo === "cliente" && (
-                        <div className="space-y-4">
-                          <Separator />
-                          <div className="space-y-3">
+                      <div className="md:col-span-2">
+                        <div className="rounded-lg border bg-muted/50 px-4 py-3 text-sm space-y-2 sticky top-4">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Resumen</p>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Subtotal</span>
+                            <span>{formatearMoneda((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0))}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Envío</span>
+                            <span>+{formatearMoneda(Number(nvoEnvio) || 0)}</span>
+                          </div>
+                          {Number(nvoDescuento) > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Descuento</span>
+                              <span className="text-green-600">-{formatearMoneda(Number(nvoDescuento))}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between font-medium border-t pt-2 mt-2">
+                            <span>Total</span>
+                            <span>
+                              {formatearMoneda(
+                                (Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
+                                (Number(nvoEnvio) || 0) -
+                                (Number(nvoDescuento) || 0)
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-primary font-semibold pt-1">
+                            <span>Precio por artículo</span>
+                            <span>
+                              {formatearMoneda(
+                                Number(nvoCantidad) > 0
+                                  ? ((Number(nvoCantidad) || 0) * (Number(nvoPrecio) || 0) +
+                                      (Number(nvoEnvio) || 0) -
+                                      (Number(nvoDescuento) || 0)) / Number(nvoCantidad)
+                                  : 0
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        {nvoTipo === "cliente" && (
+                          <div className="space-y-4">
+                            <Separator />
+                            <div className="space-y-3">
+                              <Label>Cliente</Label>
+                              <Input
+                                value={nvoCliente}
+                                onChange={(e) => setNvoCliente(e.target.value)}
+                                placeholder="Nombre del cliente"
+                              />
+                            </div>
+                            {!clientes.some((c) => c.nombre.toLowerCase() === nvoCliente.trim().toLowerCase()) && nvoCliente.trim() && (
+                              <div className="space-y-3">
+                                <Label className="text-xs text-muted-foreground">Teléfono (opcional)</Label>
+                                <Input
+                                  placeholder="Ej: 584121234567"
+                                  value={nvoTelefonoCliente}
+                                  onChange={(e) => setNvoTelefonoCliente(e.target.value)}
+                                />
+                              </div>
+                            )}
+                            <div className="space-y-3">
+                              <Label>Estado del pago</Label>
+                              <div className="flex gap-1.5">
+                                {ESTADOS_PAGO.map((ep) => (
+                                  <button
+                                    key={ep.valor}
+                                    type="button"
+                                    onClick={() => {
+                                      setNvoEstadoPago(ep.valor)
+                                      if (ep.valor !== "parcial") setNvoMontoPagado("")
+                                    }}
+                                    className={cn(
+                                      "flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all border",
+                                      nvoEstadoPago === ep.valor
+                                        ? ep.color + " border-transparent"
+                                        : "bg-muted text-muted-foreground border-transparent hover:border-border"
+                                    )}
+                                  >
+                                    {ep.etiqueta}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            {nvoEstadoPago === "parcial" && (
+                              <div className="space-y-3">
+                                <Label>Monto pagado (USD)</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step={0.01}
+                                  placeholder="0.00"
+                                  value={nvoMontoPagado}
+                                  onChange={(e) => setNvoMontoPagado(e.target.value)}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-6 py-4">
+                      <div className="md:col-span-3 space-y-4">
+                        <div className="flex rounded-lg border p-1 bg-muted">
+                          <button
+                            type="button"
+                            onClick={() => setNvoTipo("cliente")}
+                            className={cn(
+                              "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all",
+                              nvoTipo === "cliente" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <User className="h-3.5 w-3.5" />
+                            Cliente
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setNvoTipo("inventario"); setNvoTelefonoCliente("") }}
+                            className={cn(
+                              "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all",
+                              nvoTipo === "inventario" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <PackagePlus className="h-3.5 w-3.5" />
+                            Mi stock
+                          </button>
+                        </div>
+
+                        {nvoTipo === "cliente" && (
+                          <div className="space-y-3" ref={clienteInputRef}>
                             <Label>Cliente</Label>
                             <Input
                               value={nvoCliente}
-                              onChange={(e) => setNvoCliente(e.target.value)}
+                              onChange={(e) => { setNvoCliente(e.target.value); setMostrarSugerenciasCliente(true) }}
+                              onFocus={() => setMostrarSugerenciasCliente(true)}
                               placeholder="Nombre del cliente"
                             />
+                            {mostrarSugerenciasCliente && nvoCliente && (
+                              <div className="rounded-lg border bg-popover p-1 shadow-md max-h-40 overflow-y-auto">
+                                {clientes
+                                  .filter((c) => c.nombre.toLowerCase().includes(nvoCliente.toLowerCase()))
+                                  .map((c) => (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+                                      onClick={() => { setNvoCliente(c.nombre); setNvoTelefonoCliente(""); setMostrarSugerenciasCliente(false) }}
+                                    >
+                                      <span className="font-medium">{c.nombre}</span>
+                                      <span className="text-muted-foreground ml-2">{c.whatsapp}</span>
+                                    </button>
+                                  ))}
+                              </div>
+                            )}
+                            {!clientes.some((c) => c.nombre.toLowerCase() === nvoCliente.trim().toLowerCase()) && nvoCliente.trim() && (
+                              <div className="space-y-3">
+                                <Label className="text-xs text-muted-foreground">Teléfono (opcional)</Label>
+                                <Input
+                                  placeholder="Ej: 584121234567"
+                                  value={nvoTelefonoCliente}
+                                  onChange={(e) => setNvoTelefonoCliente(e.target.value)}
+                                />
+                              </div>
+                            )}
                           </div>
+                        )}
+
+                        <div className="space-y-3">
+                          <Label>Nombre del producto</Label>
+                          <Input
+                            value={nvoNombre}
+                            onChange={(e) => setNvoNombre(e.target.value)}
+                            placeholder="Ej: Funda para celular"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-3">
+                            <Label>Cantidad</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              placeholder="1"
+                              value={nvoCantidad}
+                              onChange={(e) => setNvoCantidad(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <Label>Precio unitario (USD)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              placeholder="0.00"
+                              value={nvoPrecio}
+                              onChange={(e) => setNvoPrecio(e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-3">
+                            <Label>Descuento (USD)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              placeholder="0.00"
+                              value={nvoDescuento}
+                              onChange={(e) => setNvoDescuento(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <Label>{nvoTipo === "inventario" ? "Otros (USD)" : "Precio de envío (USD)"}</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              placeholder="0.00"
+                              value={nvoEnvio}
+                              onChange={(e) => setNvoEnvio(e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        {Number(nvoCantidad) > 0 && nvoTipo === "cliente" && (
+                          <div className="space-y-3">
+                            <Label>Precio de venta</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="Precio de venta"
+                              value={nvoPrecioVenta}
+                              onChange={(e) => setNvoPrecioVenta(e.target.value)}
+                            />
+                          </div>
+                        )}
+
+                        {nvoTipo === "cliente" && (
                           <div className="space-y-3">
                             <Label>Estado del pago</Label>
                             <div className="flex gap-1.5">
@@ -801,23 +1147,89 @@ export default function DetallePedidoPage({
                               ))}
                             </div>
                           </div>
-                          {nvoEstadoPago === "parcial" && (
-                            <div className="space-y-3">
-                              <Label>Monto pagado (USD)</Label>
-                              <Input
-                                type="number"
-                                min={0}
-                                step={0.01}
-                                placeholder="0.00"
-                                value={nvoMontoPagado}
-                                onChange={(e) => setNvoMontoPagado(e.target.value)}
-                              />
+                        )}
+
+                        {nvoTipo === "cliente" && nvoEstadoPago === "parcial" && (
+                          <div className="space-y-3">
+                            <Label>Monto pagado (USD)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              placeholder="0.00"
+                              value={nvoMontoPagado}
+                              onChange={(e) => setNvoMontoPagado(e.target.value)}
+                            />
+                          </div>
+                        )}
+
+                        <Button
+                          type="button"
+                          onClick={agregarAlCarrito}
+                          className="w-full gap-2"
+                          disabled={creando}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Agregar al pedido
+                        </Button>
+                      </div>
+
+                      <div className="md:col-span-2 space-y-4">
+                        {carritoProductos.length > 0 && (
+                          <div className="rounded-lg border bg-muted/50 overflow-hidden">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2 border-b border-border/60">
+                              Productos por agregar ({carritoProductos.length})
+                            </p>
+                            <div className="divide-y divide-border/60">
+                              {carritoProductos.map((prod, i) => (
+                                <div key={i} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
+                                  <div className="min-w-0">
+                                    <p className="font-medium truncate">{prod.nombre}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {prod.cantidad} × {formatearMoneda(prod.precioUnitario)}
+                                      {prod.tipoProducto === "cliente" && (
+                                        <span className="text-muted-foreground"> · {prod.clienteNombre}</span>
+                                      )}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-3 shrink-0">
+                                    <span className="font-semibold">
+                                      {formatearMoneda(prod.cantidad * prod.precioUnitario + prod.envioCliente - prod.descuento)}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => quitarDelCarrito(i)}
+                                      className="text-muted-foreground hover:text-destructive transition-colors"
+                                      title="Quitar producto"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          )}
-                        </div>
-                      )}
+                            <div className="flex justify-between font-medium px-4 py-2.5 border-t border-border/60 text-sm">
+                              <span>Total del pedido</span>
+                              <span>
+                                {formatearMoneda(
+                                  carritoProductos.reduce(
+                                    (s, p) => s + p.cantidad * p.precioUnitario + p.envioCliente - p.descuento,
+                                    0
+                                  )
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {carritoProductos.length === 0 && (
+                          <div className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+                            Aún no has agregado productos. Completa el formulario y pulsa "Agregar al pedido".
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <Button
                     onClick={agregarProducto}
                     className="w-full"
@@ -828,7 +1240,9 @@ export default function DetallePedidoPage({
                     ) : productoEditando ? (
                       "Guardar cambios"
                     ) : (
-                      "Agregar al pedido"
+                      carritoProductos.length > 0
+                        ? `Guardar en el pedido (${carritoProductos.length})`
+                        : "Guardar en el pedido"
                     )}
                   </Button>
                 </DialogContent>

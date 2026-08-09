@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { formatearMoneda, formatearFecha, ESTATUS_PAGO_VENTA, ESTATUS_ENTREGA, ESTADOS_ARTICULO, cn } from "@/lib/utils"
+import { formatearMoneda, formatearFecha, ESTATUS_PAGO_VENTA, ESTATUS_ENTREGA, ESTADOS_ARTICULO, cn, obtenerArticulosVenta, obtenerTotalVenta } from "@/lib/utils"
 import {
   Table,
   TableBody,
@@ -59,7 +59,7 @@ export default function TiendaDashboard() {
   const apartados = articulos.filter((a) => a.estado === "apartado")
 
   const porCobrar = ventas.filter((v) => v.estatusPago === "por_pagar")
-  const totalPorCobrar = porCobrar.reduce((s, v) => s + v.precioVenta * v.cantidad, 0)
+  const totalPorCobrar = porCobrar.reduce((s, v) => s + obtenerTotalVenta(v), 0)
 
   const totalInvertido = articulos.reduce((s, a) => s + a.costo * a.cantidad, 0)
   const totalVenta = articulos.reduce((s, a) => s + a.precioVenta * a.cantidad, 0)
@@ -150,9 +150,14 @@ export default function TiendaDashboard() {
                 ventas.slice(0, 10).map((venta) => {
                   const estatusPago = ESTATUS_PAGO_VENTA.find((e) => e.valor === venta.estatusPago)
                   const entregaInfo = ESTATUS_ENTREGA.find((e) => e.valor === venta.estatusEntrega)
+                  const articulos = obtenerArticulosVenta(venta)
                   return (
                     <TableRow key={venta.id}>
-                      <TableCell className="font-medium">{venta.articuloNombre}</TableCell>
+                      <TableCell className="font-medium">
+                        {articulos.length === 1
+                          ? articulos[0].articuloNombre
+                          : `${articulos.length} artículos`}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span className="text-muted-foreground">{venta.clienteNombre}</span>
@@ -166,9 +171,9 @@ export default function TiendaDashboard() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{venta.cantidad}</TableCell>
+                      <TableCell>{articulos.reduce((s, a) => s + a.cantidad, 0)}</TableCell>
                       <TableCell className="text-emerald-600 font-medium">
-                        {formatearMoneda(venta.precioVenta * venta.cantidad)}
+                        {formatearMoneda(obtenerTotalVenta(venta))}
                       </TableCell>
                       <TableCell>
                         <Badge className={cn(

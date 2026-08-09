@@ -22,7 +22,7 @@ describe("VentasPage", () => {
   it("muestra las ventas registradas", async () => {
     sembrarDatos("ventas", {
       v1: ventaEjemplo("v1"),
-      v2: ventaEjemplo("v2", { articuloNombre: "Mouse", clienteNombre: "Bruno" }),
+      v2: ventaEjemplo("v2", { articulos: [{ articuloNombre: "Mouse", cantidad: 1, precioVenta: 25 }], clienteNombre: "Bruno" }),
     })
     sembrarDatos("clientes", { c1: clienteEjemplo("c1") })
     render(<VentasPage />)
@@ -33,7 +33,7 @@ describe("VentasPage", () => {
   it("filtra las ventas por busqueda", async () => {
     sembrarDatos("ventas", {
       v1: ventaEjemplo("v1"),
-      v2: ventaEjemplo("v2", { articuloNombre: "Mouse" }),
+      v2: ventaEjemplo("v2", { articulos: [{ articuloNombre: "Mouse", cantidad: 1, precioVenta: 25 }] }),
     })
     render(<VentasPage />)
     await waitFor(() => expect(screen.getByText("Laptop HP")).toBeInTheDocument())

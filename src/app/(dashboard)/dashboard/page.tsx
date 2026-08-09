@@ -5,7 +5,7 @@ import Link from "next/link"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { pedidosService, productosService } from "@/lib/firebaseServices"
-import { formatearMoneda, formatearFecha, calcularDiasEstancado, ESTADOS_PEDIDO, ESTADOS_ARTICULO, ESTATUS_PAGO_VENTA, ESTATUS_ENTREGA, cn } from "@/lib/utils"
+import { formatearMoneda, formatearFecha, calcularDiasEstancado, ESTADOS_PEDIDO, ESTADOS_ARTICULO, ESTATUS_PAGO_VENTA, ESTATUS_ENTREGA, cn, obtenerTotalVenta, obtenerArticulosVenta } from "@/lib/utils"
 import { DIAS_ESTANCAMIENTO } from "@/lib/constants"
 import {
   Table,
@@ -98,7 +98,7 @@ export default function DashboardGlobalPage() {
   }, 0)
 
   const porCobrarVentas = ventas.filter((v) => v.estatusPago === "por_pagar")
-  const totalPorCobrarVentas = porCobrarVentas.reduce((s, v) => s + v.precioVenta * v.cantidad, 0)
+  const totalPorCobrarVentas = porCobrarVentas.reduce((s, v) => s + obtenerTotalVenta(v), 0)
 
   const gananciasPedidos = pedidos.reduce((sum, p) => sum + (p.gananciaTotal || 0), 0)
   const totalInvertido = articulos.reduce((s, a) => s + a.costo * a.cantidad, 0)
@@ -286,9 +286,9 @@ export default function DashboardGlobalPage() {
                   </TableRow>
                 ) : ventasRecientes.map((v) => (
                   <TableRow key={v.id}>
-                    <TableCell className="font-medium">{v.articuloNombre}</TableCell>
+                    <TableCell className="font-medium">{obtenerArticulosVenta(v)[0]?.articuloNombre || "-"}</TableCell>
                     <TableCell className="text-emerald-600 font-medium">
-                      {formatearMoneda(v.precioVenta * v.cantidad)}
+                      {formatearMoneda(obtenerTotalVenta(v))}
                     </TableCell>
                     <TableCell>
                       <Badge className={cn("border-0 text-[10px]", v.estatusPago === "pagado" ? "bg-emerald-100 text-emerald-700" : "bg-yellow-100 text-yellow-700")}>
