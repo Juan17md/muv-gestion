@@ -369,10 +369,6 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
                 </div>
               </div>
               <div className="flex flex-wrap items-end gap-2">
-                <div className="w-28">
-                  <Label className="text-xs text-muted-foreground">Cantidad</Label>
-                  <Input type="number" min={1} placeholder="1" value={cantidadVenta} onChange={(e) => setCantidadVenta(e.target.value)} />
-                </div>
                 <div className="w-32">
                   <Label className="text-xs text-muted-foreground">Descuento</Label>
                   <Select value={tipoDescuento} onValueChange={(v) => setTipoDescuento(v as "porcentaje" | "monto")}>
@@ -396,10 +392,19 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
                     onChange={(e) => setDescuentoValor(e.target.value)}
                   />
                 </div>
-                <Button type="button" onClick={handleAgregarArticulo} disabled={!articuloId || !articulosEnStock.length} className="gap-2 h-[50px]">
-                  <Plus className="h-4 w-4" />
-                  Agregar
-                </Button>
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="w-28">
+                  <Label className="text-xs text-muted-foreground">Cantidad</Label>
+                  <Input type="number" min={1} placeholder="1" value={cantidadVenta} onChange={(e) => setCantidadVenta(e.target.value)} />
+                </div>
+                <div className="flex-1">
+                  <Label className="text-xs text-muted-foreground">&nbsp;</Label>
+                  <Button type="button" onClick={handleAgregarArticulo} disabled={!articuloId || !articulosEnStock.length} className="gap-2 w-full h-[50px]">
+                    <Plus className="h-4 w-4" />
+                    Agregar
+                  </Button>
+                </div>
               </div>
             </div>
 
