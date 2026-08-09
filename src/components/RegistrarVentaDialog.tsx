@@ -268,7 +268,7 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-3xl overflow-y-auto max-h-[90dvh]">
+      <DialogContent className="sm:max-w-5xl overflow-y-auto max-h-[92dvh]">
         <DialogHeader>
           <DialogTitle>Registrar Venta</DialogTitle>
           <DialogDescription>
@@ -315,8 +315,8 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
 
             <div className="space-y-3">
               <Label>Agregar artículo</Label>
-              <div className="flex items-end gap-3">
-                <div className="flex-1">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex-1 min-w-[220px]">
                   {articulosEnStock.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-2">No hay artículos en stock.</p>
                   ) : (
@@ -367,34 +367,36 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
                     </Popover>
                   )}
                 </div>
-                <div className="w-20">
-                  <Input type="number" min={1} placeholder="Cant." value={cantidadVenta} onChange={(e) => setCantidadVenta(e.target.value)} />
-                </div>
               </div>
-
-              <div className="flex items-end gap-2">
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="w-28">
+                  <Label className="text-xs text-muted-foreground">Cantidad</Label>
+                  <Input type="number" min={1} placeholder="1" value={cantidadVenta} onChange={(e) => setCantidadVenta(e.target.value)} />
+                </div>
                 <div className="w-32">
+                  <Label className="text-xs text-muted-foreground">Descuento</Label>
                   <Select value={tipoDescuento} onValueChange={(v) => setTipoDescuento(v as "porcentaje" | "monto")}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="porcentaje">Descuento %</SelectItem>
-                      <SelectItem value="monto">Descuento $</SelectItem>
+                      <SelectItem value="porcentaje">%</SelectItem>
+                      <SelectItem value="monto">$</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-[140px]">
+                  <Label className="text-xs text-muted-foreground">&nbsp;</Label>
                   <Input
                     type="number"
                     min={0}
                     step={tipoDescuento === "porcentaje" ? 1 : 0.01}
-                    placeholder={tipoDescuento === "porcentaje" ? "Ej: 10" : "Ej: 5.00"}
+                    placeholder={tipoDescuento === "porcentaje" ? "Ej: 10%" : "Ej: 5.00"}
                     value={descuentoValor}
                     onChange={(e) => setDescuentoValor(e.target.value)}
                   />
                 </div>
-                <Button type="button" onClick={handleAgregarArticulo} disabled={!articuloId || !articulosEnStock.length} className="gap-2">
+                <Button type="button" onClick={handleAgregarArticulo} disabled={!articuloId || !articulosEnStock.length} className="gap-2 h-[50px]">
                   <Plus className="h-4 w-4" />
                   Agregar
                 </Button>
@@ -402,35 +404,44 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
             </div>
 
             {carrito.length > 0 && (
-              <div className="rounded-lg border bg-muted/50 divide-y divide-border/60">
-                {carrito.map((linea) => (
-                  <div key={linea.articuloId} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{linea.articuloNombre}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {linea.cantidad} × {formatearMoneda(linea.precioVenta)}
+              <div className="rounded-lg border bg-muted/50 overflow-hidden">
+                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-4 py-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60">
+                  <span>Artículo</span>
+                  <span className="text-right">Cant.</span>
+                  <span className="text-right">Precio</span>
+                  <span className="text-right">Subtotal</span>
+                </div>
+                <div className="divide-y divide-border/60">
+                  {carrito.map((linea) => (
+                    <div key={linea.articuloId} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center px-4 py-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{linea.articuloNombre}</p>
                         {(linea.descuento || linea.descuentoMonto) && (
-                          <span className="text-primary">
-                            {linea.descuento ? ` (${linea.descuento}%)` : ` (−${formatearMoneda(linea.descuentoMonto || 0)})`}
-                          </span>
+                          <p className="text-xs text-primary">
+                            {linea.descuento ? `Descuento ${linea.descuento}%` : `Descuento ${formatearMoneda(linea.descuentoMonto || 0)}`}
+                          </p>
                         )}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="font-semibold">
-                        {formatearMoneda(obtenerPrecioConDescuento(linea) * linea.cantidad)}
+                      </div>
+                      <span className="text-right tabular-nums">{linea.cantidad}</span>
+                      <span className="text-right tabular-nums text-muted-foreground">
+                        {formatearMoneda(obtenerPrecioConDescuento(linea))}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleQuitarArticulo(linea.articuloId!)}
-                        className="text-muted-foreground hover:text-destructive transition-colors"
-                        title="Quitar artículo"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        <span className="font-semibold tabular-nums">
+                          {formatearMoneda(obtenerPrecioConDescuento(linea) * linea.cantidad)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleQuitarArticulo(linea.articuloId!)}
+                          className="text-muted-foreground hover:text-destructive transition-colors"
+                          title="Quitar artículo"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
 
