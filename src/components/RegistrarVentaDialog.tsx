@@ -428,8 +428,15 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
                         )}
                       </div>
                       <span className="text-right tabular-nums">{linea.cantidad}</span>
-                      <span className="text-right tabular-nums text-muted-foreground">
-                        {formatearMoneda(obtenerPrecioConDescuento(linea))}
+                      <span className="text-right tabular-nums">
+                        {linea.descuento || linea.descuentoMonto ? (
+                          <span className="space-x-1.5">
+                            <span className="text-muted-foreground line-through">{formatearMoneda(linea.precioVenta)}</span>
+                            <span className="text-primary">{formatearMoneda(obtenerPrecioConDescuento(linea))}</span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">{formatearMoneda(linea.precioVenta)}</span>
+                        )}
                       </span>
                       <div className="flex items-center justify-end gap-3">
                         <span className="font-semibold tabular-nums">
@@ -449,8 +456,41 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
                 </div>
               </div>
             )}
+          </div>
 
-            <div className="flex items-center justify-between py-2">
+          <div className="space-y-4">
+            <div className="rounded-lg border bg-muted/50 px-4 py-3 text-sm space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                Resumen
+              </p>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>{formatearMoneda(subtotalCarrito)}</span>
+              </div>
+              {totalDescuentos > 0 && (
+                <div className="flex justify-between text-primary">
+                  <span>Descuentos</span>
+                  <span>−{formatearMoneda(totalDescuentos)}</span>
+                </div>
+              )}
+              {deliveryIncluido && Number(costoDelivery) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Delivery</span>
+                  <span>+{formatearMoneda(Number(costoDelivery))}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-medium border-t pt-2 mt-2">
+                <span>Total</span>
+                <span>
+                  {formatearMoneda(
+                    subtotalCarrito +
+                    (deliveryIncluido ? Number(costoDelivery) : 0)
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between py-1">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <Label className="cursor-pointer">Fiado</Label>
@@ -510,39 +550,6 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
                 </Popover>
               </div>
             )}
-          </div>
-
-          <div className="space-y-4">
-            <div className="rounded-lg border bg-muted/50 px-4 py-3 text-sm space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                Resumen
-              </p>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatearMoneda(subtotalCarrito)}</span>
-              </div>
-              {totalDescuentos > 0 && (
-                <div className="flex justify-between text-primary">
-                  <span>Descuentos</span>
-                  <span>−{formatearMoneda(totalDescuentos)}</span>
-                </div>
-              )}
-              {deliveryIncluido && Number(costoDelivery) > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Delivery</span>
-                  <span>+{formatearMoneda(Number(costoDelivery))}</span>
-                </div>
-              )}
-              <div className="flex justify-between font-medium border-t pt-2 mt-2">
-                <span>Total</span>
-                <span>
-                  {formatearMoneda(
-                    subtotalCarrito +
-                    (deliveryIncluido ? Number(costoDelivery) : 0)
-                  )}
-                </span>
-              </div>
-            </div>
 
             <div className="space-y-3">
               <Label>Estatus</Label>
