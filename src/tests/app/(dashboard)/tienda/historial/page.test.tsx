@@ -22,7 +22,7 @@ describe("TiendaHistorialPage", () => {
   it("muestra las ventas registradas", async () => {
     sembrarDatos("ventas", {
       v1: ventaEjemplo("v1"),
-      v2: ventaEjemplo("v2", { articuloNombre: "Teclado", clienteNombre: "Bruno", precioVenta: 60, estatusPago: "por_pagar" }),
+      v2: ventaEjemplo("v2", { articulos: [{ articuloNombre: "Teclado", cantidad: 1, precioVenta: 60 }], clienteNombre: "Bruno", estatusPago: "por_pagar" }),
     })
     render(<TiendaHistorialPage />)
     await waitFor(() => expect(screen.getByText("Laptop HP")).toBeInTheDocument())
@@ -32,7 +32,7 @@ describe("TiendaHistorialPage", () => {
   it("filtra las ventas por busqueda", async () => {
     sembrarDatos("ventas", {
       v1: ventaEjemplo("v1"),
-      v2: ventaEjemplo("v2", { articuloNombre: "Teclado" }),
+      v2: ventaEjemplo("v2", { articulos: [{ articuloNombre: "Teclado", cantidad: 1, precioVenta: 60 }] }),
     })
     render(<TiendaHistorialPage />)
     await waitFor(() => expect(screen.getByText("Laptop HP")).toBeInTheDocument())

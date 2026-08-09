@@ -31,9 +31,7 @@ export const productoEjemplo = (id: string, extras: Record<string, unknown> = {}
 })
 
 export const ventaEjemplo = (id: string, extras: Record<string, unknown> = {}) => ({
-  articuloNombre: "Laptop HP",
-  cantidad: 1,
-  precioVenta: 850,
+  articulos: [{ articuloNombre: "Laptop HP", cantidad: 1, precioVenta: 850 }],
   clienteNombre: "Ana",
   estatusEntrega: "por_entregar",
   estatusPago: "por_pagar",

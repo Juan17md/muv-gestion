@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { collection, query, orderBy, onSnapshot, getDocs, doc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { ventasService } from "@/lib/firebaseServices"
-import { formatearMoneda, formatearFecha, METODOS_PAGO, ESTATUS_PAGO_VENTA, ESTATUS_ENTREGA, cn } from "@/lib/utils"
+import { formatearMoneda, formatearFecha, METODOS_PAGO, ESTATUS_PAGO_VENTA, ESTATUS_ENTREGA, cn, obtenerArticulosVenta, obtenerTotalVenta } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -85,9 +85,10 @@ export default function VentasPage() {
     if (filtroEstatus !== "todos" && v.estatusPago !== filtroEstatus) return false
     if (busqueda) {
       const q = busqueda.toLowerCase()
+      const nombresArticulos = obtenerArticulosVenta(v).map((a) => a.articuloNombre.toLowerCase())
       return (
-        v.articuloNombre.toLowerCase().includes(q) ||
-        v.clienteNombre.toLowerCase().includes(q)
+        v.clienteNombre.toLowerCase().includes(q) ||
+        nombresArticulos.some((n) => n.includes(q))
       )
     }
     return true
@@ -201,7 +202,23 @@ export default function VentasPage() {
                   const entregaInfo = ESTATUS_ENTREGA.find((e) => e.valor === venta.estatusEntrega)
                   return (
                     <TableRow key={venta.id}>
-                      <TableCell className="font-medium">{venta.articuloNombre}</TableCell>
+                       <TableCell>
+                        {(() => {
+                          const articulos = obtenerArticulosVenta(venta)
+                          return articulos.length === 1 ? (
+                            <span className="font-medium">{articulos[0].articuloNombre}</span>
+                          ) : (
+                            <div className="space-y-0.5">
+                              {articulos.map((a, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                  <span className="font-medium">{a.articuloNombre}</span>
+                                  <span className="text-xs text-muted-foreground">×{a.cantidad}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })()}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span>{venta.clienteNombre}</span>
@@ -216,9 +233,14 @@ export default function VentasPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{venta.cantidad}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const articulos = obtenerArticulosVenta(venta)
+                          return articulos.length === 1 ? articulos[0].cantidad : articulos.reduce((s, a) => s + a.cantidad, 0)
+                        })()}
+                      </TableCell>
                       <TableCell className="text-emerald-600 font-medium">
-                        {formatearMoneda(venta.precioVenta * venta.cantidad)}
+                        {formatearMoneda(obtenerTotalVenta(venta))}
                       </TableCell>
                       <TableCell className="text-muted-foreground">{metodoInfo?.etiqueta || "-"}</TableCell>
                       <TableCell className="text-muted-foreground">{venta.fechaPago ? formatearFecha(venta.fechaPago) : "-"}</TableCell>

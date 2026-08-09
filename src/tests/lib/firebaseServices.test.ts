@@ -235,16 +235,14 @@ describe("inventarioService", () => {
 describe("ventasService", () => {
   it("listar y crear operan sobre la coleccion ventas", async () => {
     sembrarDatos("ventas", {
-      v1: { articuloNombre: "Laptop", cantidad: 1, precioVenta: 800, clienteNombre: "Ana", estatusEntrega: "por_entregar", creadoEn: crearTimestamp(1), actualizadoEn: crearTimestamp(1) },
+      v1: { articulos: [{ articuloNombre: "Laptop", cantidad: 1, precioVenta: 800 }], clienteNombre: "Ana", estatusEntrega: "por_entregar", creadoEn: crearTimestamp(1), actualizadoEn: crearTimestamp(1) },
     })
     const ventas = await ventasService.listar()
     expect(ventas).toHaveLength(1)
-    expect(ventas[0].articuloNombre).toBe("Laptop")
+    expect(ventas[0].clienteNombre).toBe("Ana")
 
     await ventasService.crear({
-      articuloNombre: "Tablet",
-      cantidad: 1,
-      precioVenta: 300,
+      articulos: [{ articuloNombre: "Tablet", cantidad: 2, precioVenta: 300 }],
       clienteNombre: "Bruno",
       estatusEntrega: "por_entregar",
     })

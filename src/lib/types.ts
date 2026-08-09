@@ -99,13 +99,25 @@ export type MetodoPago = "pago_movil" | "efectivo_usd" | "dolares_digitales"
 export type EstatusPagoVenta = "por_pagar" | "pagado"
 export type EstatusEntrega = "por_entregar" | "entregado"
 
-export interface Venta {
-  id: string
+export interface ArticuloVenta {
   articuloId?: string
   articuloNombre: string
   articuloCodigo?: string
   cantidad: number
   precioVenta: number
+  costo?: number
+  descuento?: number
+  descuentoMonto?: number
+}
+
+export interface Venta {
+  id: string
+  articulos?: ArticuloVenta[]
+  articuloId?: string
+  articuloNombre?: string
+  articuloCodigo?: string
+  cantidad?: number
+  precioVenta?: number
   costoDelivery?: number
   clienteId?: string
   clienteNombre: string

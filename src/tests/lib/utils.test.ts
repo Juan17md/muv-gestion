@@ -11,7 +11,13 @@ import {
   ESTATUS_PAGO_VENTA,
   ESTATUS_ENTREGA,
   SIGUIENTE_ESTADO,
+  obtenerPrecioConDescuento,
+  obtenerSubtotalArticulo,
+  obtenerTotalArticulos,
+  obtenerArticulosVenta,
+  obtenerTotalVenta,
 } from "@/lib/utils"
+import type { ArticuloVenta, Venta } from "@/lib/types"
 
 describe("utils", () => {
   describe("cn", () => {
@@ -146,6 +152,146 @@ describe("utils", () => {
     it("no define estado posterior para estados finales", () => {
       expect(SIGUIENTE_ESTADO.entregado_cliente).toBeUndefined()
       expect(SIGUIENTE_ESTADO.cerrado).toBeUndefined()
+    })
+  })
+
+  describe("obtenerPrecioConDescuento", () => {
+    it("devuelve precio original sin descuento", () => {
+      expect(obtenerPrecioConDescuento({ precioVenta: 100 })).toBe(100)
+    })
+
+    it("aplica descuento porcentual", () => {
+      expect(obtenerPrecioConDescuento({ precioVenta: 100, descuento: 10 })).toBe(90)
+    })
+
+    it("aplica descuento en monto fijo", () => {
+      expect(obtenerPrecioConDescuento({ precioVenta: 100, descuentoMonto: 15 })).toBe(85)
+    })
+
+    it("aplica ambos descuentos", () => {
+      expect(obtenerPrecioConDescuento({ precioVenta: 100, descuento: 10, descuentoMonto: 5 })).toBe(85)
+    })
+
+    it("limita descuento porcentual al 100%", () => {
+      expect(obtenerPrecioConDescuento({ precioVenta: 100, descuento: 150 })).toBe(0)
+    })
+
+    it("no devuelve precio negativo", () => {
+      expect(obtenerPrecioConDescuento({ precioVenta: 10, descuentoMonto: 20 })).toBe(0)
+    })
+  })
+
+  describe("obtenerSubtotalArticulo", () => {
+    it("multiplica precio con descuento por cantidad", () => {
+      const art: ArticuloVenta = { articuloNombre: "X", cantidad: 3, precioVenta: 100 }
+      expect(obtenerSubtotalArticulo(art)).toBe(300)
+    })
+
+    it("aplica descuento y multiplica por cantidad", () => {
+      const art: ArticuloVenta = { articuloNombre: "X", cantidad: 2, precioVenta: 100, descuento: 10 }
+      expect(obtenerSubtotalArticulo(art)).toBe(180)
+    })
+
+    it("cantidad cero da 0", () => {
+      const art: ArticuloVenta = { articuloNombre: "X", cantidad: 0, precioVenta: 100 }
+      expect(obtenerSubtotalArticulo(art)).toBe(0)
+    })
+  })
+
+  describe("obtenerTotalArticulos", () => {
+    it("suma subtotales de varios articulos", () => {
+      const arts: ArticuloVenta[] = [
+        { articuloNombre: "A", cantidad: 2, precioVenta: 100 },
+        { articuloNombre: "B", cantidad: 1, precioVenta: 50 },
+      ]
+      expect(obtenerTotalArticulos(arts)).toBe(250)
+    })
+
+    it("array vacio da 0", () => {
+      expect(obtenerTotalArticulos([])).toBe(0)
+    })
+  })
+
+  describe("obtenerArticulosVenta", () => {
+    const ventaConArticulos = { id: "v1", clienteNombre: "A", articulos: [{ articuloNombre: "Laptop", cantidad: 2, precioVenta: 100 }], estatusEntrega: "por_entregar", creadoEn: {} as never, actualizadoEn: {} as never } as Venta
+
+    it("devuelve array de articulos cuando existe", () => {
+      const result = obtenerArticulosVenta(ventaConArticulos)
+      expect(result).toHaveLength(1)
+      expect(result[0].articuloNombre).toBe("Laptop")
+    })
+
+    it("fallback de venta antigua sin articulos", () => {
+      const ventaAntigua = {
+        id: "v2",
+        clienteNombre: "B",
+        articuloNombre: "Mouse",
+        cantidad: 1,
+        precioVenta: 25,
+        estatusEntrega: "por_entregar",
+        creadoEn: {} as never,
+        actualizadoEn: {} as never,
+        articulos: undefined,
+      } as unknown as Venta
+      const result = obtenerArticulosVenta(ventaAntigua)
+      expect(result).toHaveLength(1)
+      expect(result[0].articuloNombre).toBe("Mouse")
+      expect(result[0].cantidad).toBe(1)
+    })
+
+    it("articulos vacio usa fallback", () => {
+      const venta = { ...ventaConArticulos, articulos: [], articuloNombre: "X", cantidad: 3, precioVenta: 10 }
+      const result = obtenerArticulosVenta(venta as unknown as Venta)
+      expect(result).toHaveLength(1)
+      expect(result[0].articuloNombre).toBe("X")
+    })
+
+    it("sin datos devuelve array vacio", () => {
+      const venta = { ...ventaConArticulos, articulos: [] as ArticuloVenta[], articuloNombre: undefined } as unknown as Venta
+      const result = obtenerArticulosVenta(venta)
+      expect(result).toEqual([])
+    })
+  })
+
+  describe("obtenerTotalVenta", () => {
+    it("suma subtotal de articulos", () => {
+      const venta = {
+        id: "v1",
+        clienteNombre: "A",
+        articulos: [{ articuloNombre: "Laptop", cantidad: 2, precioVenta: 100 }],
+        estatusEntrega: "por_entregar",
+        creadoEn: {} as never,
+        actualizadoEn: {} as never,
+      } as Venta
+      expect(obtenerTotalVenta(venta)).toBe(200)
+    })
+
+    it("incluye costo de delivery", () => {
+      const venta = {
+        id: "v1",
+        clienteNombre: "A",
+        articulos: [{ articuloNombre: "Laptop", cantidad: 1, precioVenta: 100 }],
+        costoDelivery: 10,
+        estatusEntrega: "por_entregar",
+        creadoEn: {} as never,
+        actualizadoEn: {} as never,
+      } as Venta
+      expect(obtenerTotalVenta(venta)).toBe(110)
+    })
+
+    it("fallback de venta antigua con delivery", () => {
+      const venta = {
+        id: "v2",
+        clienteNombre: "B",
+        articuloNombre: "Mouse",
+        cantidad: 2,
+        precioVenta: 25,
+        costoDelivery: 5,
+        estatusEntrega: "por_entregar",
+        creadoEn: {} as never,
+        actualizadoEn: {} as never,
+      } as unknown as Venta
+      expect(obtenerTotalVenta(venta)).toBe(55)
     })
   })
 })

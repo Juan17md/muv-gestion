@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { EstadoPedido } from "./types"
+import type { EstadoPedido, Venta, ArticuloVenta } from "./types"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -76,4 +76,37 @@ export const SIGUIENTE_ESTADO: Partial<Record<EstadoPedido, EstadoPedido>> = {
   casillero_usa: "transito_usa_ven",
   transito_usa_ven: "entregado_ven",
   entregado_ven: "entregado_cliente",
+}
+
+export function obtenerPrecioConDescuento(articulo: { precioVenta: number; descuento?: number; descuentoMonto?: number }): number {
+  const { precioVenta, descuento = 0, descuentoMonto = 0 } = articulo
+  const descuentoPorcentual = Math.min(descuento, 100) / 100 * precioVenta
+  const totalDescuento = descuentoPorcentual + descuentoMonto
+  return Math.max(0, precioVenta - totalDescuento)
+}
+
+export function obtenerSubtotalArticulo(articulo: ArticuloVenta): number {
+  return obtenerPrecioConDescuento(articulo) * articulo.cantidad
+}
+
+export function obtenerTotalArticulos(articulos: ArticuloVenta[]): number {
+  return articulos.reduce((suma, a) => suma + obtenerSubtotalArticulo(a), 0)
+}
+
+export function obtenerArticulosVenta(venta: Venta): ArticuloVenta[] {
+  if (venta.articulos && venta.articulos.length > 0) return venta.articulos
+  if (venta.articuloNombre) {
+    return [{
+      articuloId: venta.articuloId,
+      articuloNombre: venta.articuloNombre,
+      articuloCodigo: venta.articuloCodigo,
+      cantidad: venta.cantidad || 1,
+      precioVenta: venta.precioVenta || 0,
+    }]
+  }
+  return []
+}
+
+export function obtenerTotalVenta(venta: Venta): number {
+  return obtenerTotalArticulos(obtenerArticulosVenta(venta)) + (venta.costoDelivery || 0)
 }

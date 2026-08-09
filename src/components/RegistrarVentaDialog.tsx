@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { doc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { clientesService, ventasService } from "@/lib/firebaseServices"
-import { formatearMoneda, METODOS_PAGO, ESTATUS_PAGO_VENTA, cn } from "@/lib/utils"
+import { formatearMoneda, METODOS_PAGO, ESTATUS_PAGO_VENTA, cn, obtenerPrecioConDescuento } from "@/lib/utils"
 import {
   Dialog,
   DialogContent,
@@ -42,8 +42,8 @@ import { es } from "date-fns/locale"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { toast } from "sonner"
-import { ShoppingCart, ChevronsUpDown, Check, Truck, Clock } from "lucide-react"
-import type { ArticuloTienda, Venta } from "@/lib/types"
+import { ShoppingCart, ChevronsUpDown, Check, Truck, Clock, Plus, Trash2 } from "lucide-react"
+import type { ArticuloTienda, Venta, ArticuloVenta } from "@/lib/types"
 import type { Cliente } from "@/lib/types"
 
 interface RegistrarVentaDialogProps {
@@ -52,15 +52,22 @@ interface RegistrarVentaDialogProps {
   onOpenChange?: (open: boolean) => void
 }
 
+interface LineaCarrito extends ArticuloVenta {
+  stockOriginal: number
+}
+
 export default function RegistrarVentaDialog({ articulosEnStock, open: openProp, onOpenChange }: RegistrarVentaDialogProps) {
   const [openInterno, setOpenInterno] = useState(false)
   const open = openProp ?? openInterno
   const setOpen = onOpenChange ?? setOpenInterno
   const [clientes, setClientes] = useState<Cliente[]>([])
+  const [carrito, setCarrito] = useState<LineaCarrito[]>([])
   const [articuloId, setArticuloId] = useState("")
   const [popoverArticulo, setPopoverArticulo] = useState(false)
   const [popoverCalendario, setPopoverCalendario] = useState(false)
   const [cantidadVenta, setCantidadVenta] = useState("")
+  const [tipoDescuento, setTipoDescuento] = useState<"porcentaje" | "monto">("porcentaje")
+  const [descuentoValor, setDescuentoValor] = useState("")
   const [clienteNombre, setClienteNombre] = useState("")
   const [telefonoCliente, setTelefonoCliente] = useState("")
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
@@ -76,6 +83,7 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
   useEffect(() => {
     if (open) {
       clientesService.listar().then(setClientes).catch(() => {})
+      setCarrito([])
       setMetodoPago("")
       setFechaPago(new Date())
       setEstatusPago("por_pagar")
@@ -84,6 +92,10 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
       setCostoDelivery("")
       setClienteNombre("")
       setTelefonoCliente("")
+      setArticuloId("")
+      setCantidadVenta("")
+      setTipoDescuento("porcentaje")
+      setDescuentoValor("")
     }
   }, [open])
 
@@ -103,63 +115,140 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
     c.nombre.toLowerCase().includes(clienteNombre.toLowerCase())
   )
 
-  function handleCancelar() {
-    setOpen(false)
+  const subtotalCarrito = carrito.reduce(
+    (suma, linea) => suma + obtenerPrecioConDescuento(linea) * linea.cantidad,
+    0
+  )
+  const totalDescuentos = carrito.reduce(
+    (suma, linea) => suma + (linea.precioVenta - obtenerPrecioConDescuento(linea)) * linea.cantidad,
+    0
+  )
+
+  function stockDisponible(articulo: ArticuloTienda): number {
+    const enCarrito = carrito
+      .filter((l) => l.articuloId === articulo.id)
+      .reduce((s, l) => s + l.cantidad, 0)
+    return Math.max(0, articulo.cantidad - enCarrito)
+  }
+
+  function handleAgregarArticulo() {
+    if (!articuloSeleccionado) {
+      toast.error("Selecciona un artículo")
+      return
+    }
+    const cantidad = Number(cantidadVenta) || 1
+    const disponible = stockDisponible(articuloSeleccionado)
+    if (cantidad > disponible) {
+      toast.error(`Stock insuficiente: quedan ${disponible} disponible(s)`)
+      return
+    }
+
+    const descuentoVal = Number(descuentoValor) || 0
+    const linea: LineaCarrito = {
+      articuloId: articuloSeleccionado.id,
+      articuloNombre: articuloSeleccionado.nombre,
+      articuloCodigo: articuloSeleccionado.codigo,
+      cantidad,
+      precioVenta: articuloSeleccionado.precioVenta,
+      costo: articuloSeleccionado.costo,
+      descuento: tipoDescuento === "porcentaje" ? descuentoVal : undefined,
+      descuentoMonto: tipoDescuento === "monto" ? descuentoVal : undefined,
+      stockOriginal: articuloSeleccionado.cantidad,
+    }
+
+    const existente = carrito.find((l) => l.articuloId === articuloSeleccionado.id)
+    if (existente) {
+      setCarrito(carrito.map((l) => (l.articuloId === existente.articuloId ? { ...l, cantidad: l.cantidad + cantidad } : l)))
+    } else {
+      setCarrito([...carrito, linea])
+    }
     setArticuloId("")
     setCantidadVenta("")
+    setDescuentoValor("")
+    setTipoDescuento("porcentaje")
+  }
+
+  function handleQuitarArticulo(articuloId: string) {
+    setCarrito(carrito.filter((l) => l.articuloId !== articuloId))
+  }
+
+  function handleCancelar() {
+    setOpen(false)
+    setCarrito([])
     setClienteNombre("")
     setTelefonoCliente("")
     setDeliveryIncluido(false)
     setCostoDelivery("")
+    setArticuloId("")
+    setCantidadVenta("")
+    setDescuentoValor("")
   }
 
   async function handleRegistrar() {
-    const cantidad = Number(cantidadVenta) || 1
-    if (!articuloId || !clienteNombre.trim() || (!fiado && !metodoPago)) {
-      toast.error("Completa todos los campos requeridos")
+    if (carrito.length === 0 || !clienteNombre.trim() || (!fiado && !metodoPago)) {
+      toast.error("Completa los campos requeridos: cliente y al menos un artículo")
       return
     }
 
     setEnviando(true)
     try {
-      const articulo = articuloSeleccionado!
-      const clienteExistente = clientes.find((c) => c.nombre === clienteNombre.trim())
-      const whatsappFinal = clienteExistente ? clienteExistente.whatsapp : (telefonoCliente || undefined)
+      let clienteExistente = clientes.find((c) => c.nombre === clienteNombre.trim())
+      let clienteId: string | undefined = clienteExistente?.id
+      const whatsappFinal = clienteExistente?.whatsapp || telefonoCliente.trim() || undefined
+
+      if (!clienteExistente) {
+        const refCliente = await clientesService.crear({
+          nombre: clienteNombre.trim(),
+          whatsapp: telefonoCliente.trim() || "",
+        } as never)
+        clienteId = refCliente.id
+      }
+
+      const articulosVenta: ArticuloVenta[] = carrito.map((l) => ({
+        articuloId: l.articuloId,
+        articuloNombre: l.articuloNombre,
+        articuloCodigo: l.articuloCodigo,
+        cantidad: l.cantidad,
+        precioVenta: l.precioVenta,
+        costo: l.costo,
+        descuento: l.descuento,
+        descuentoMonto: l.descuentoMonto,
+      }))
 
       const datosVenta: Record<string, unknown> = {
-        articuloId: articulo.id,
-        articuloNombre: articulo.nombre,
-        cantidad,
-        precioVenta: articulo.precioVenta,
+        articulos: articulosVenta,
+        clienteId,
         clienteNombre: clienteNombre.trim(),
         metodoPago: fiado ? undefined : metodoPago,
         fechaPago: fiado ? undefined : Timestamp.fromDate(fechaPago),
-        estatusPago: "por_pagar",
+        estatusPago,
         estatusEntrega: "por_entregar",
         fiado: fiado || undefined,
       }
       if (deliveryIncluido && Number(costoDelivery) > 0) datosVenta.costoDelivery = Number(costoDelivery)
-      if (articulo.codigo) datosVenta.articuloCodigo = articulo.codigo
-      if (clienteExistente?.id) datosVenta.clienteId = clienteExistente.id
       if (whatsappFinal) datosVenta.clienteWhatsapp = whatsappFinal
 
       await ventasService.crear(
         datosVenta as unknown as Omit<Venta, "id" | "creadoEn" | "actualizadoEn">
       )
 
-      const nuevaCantidad = Math.max(0, articulo.cantidad - cantidad)
-      const updateData: Record<string, unknown> = {
-        cantidad: nuevaCantidad,
-        actualizadoEn: serverTimestamp(),
+      for (const linea of carrito) {
+        const articulo = articulosEnStock.find((a) => a.id === linea.articuloId)
+        if (!articulo) continue
+        const nuevaCantidad = Math.max(0, articulo.cantidad - linea.cantidad)
+        const updateData: Record<string, unknown> = {
+          cantidad: nuevaCantidad,
+          actualizadoEn: serverTimestamp(),
+        }
+        if (nuevaCantidad === 0) updateData.estado = "vendido"
+        await updateDoc(doc(db, "inventario", articulo.id), updateData)
       }
-      if (nuevaCantidad === 0) updateData.estado = "vendido"
-      await updateDoc(doc(db, "inventario", articulo.id), updateData)
 
       toast.success("Venta registrada")
       setOpen(false)
-      setArticuloId("")
-      setCantidadVenta("")
+      setCarrito([])
       setClienteNombre("")
+      setTelefonoCliente("")
       setDeliveryIncluido(false)
       setCostoDelivery("")
     } catch {
@@ -183,71 +272,12 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
         <DialogHeader>
           <DialogTitle>Registrar Venta</DialogTitle>
           <DialogDescription>
-            Selecciona el artículo vendido y los datos de pago.
+            Ingresa los datos del cliente y agrega los artículos vendidos.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
           <div className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex justify-between items-end">
-                <Label>Artículo</Label>
-                <Label className="text-xs">Cant.</Label>
-              </div>
-              {articulosEnStock.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">No hay artículos en stock.</p>
-              ) : (
-                <div className="flex items-end gap-3">
-                  <div className="flex-1">
-                    <Popover open={popoverArticulo} onOpenChange={setPopoverArticulo}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" role="combobox" className="w-full justify-between h-[50px]">
-                          {articuloSeleccionado
-                            ? `${articuloSeleccionado.nombre} — ${formatearMoneda(articuloSeleccionado.precioVenta)}`
-                            : "Seleccionar artículo..."}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="p-0"
-                        align="start"
-                        side="bottom"
-                        style={{ width: 'calc(var(--radix-popover-trigger-width) * 2)' }}
-                      >
-                        <Command>
-                          <CommandInput placeholder="Buscar artículo..." />
-                          <CommandList className="max-h-56 md:max-h-72">
-                            <CommandEmpty>Sin resultados</CommandEmpty>
-                            <CommandGroup>
-                              {articulosEnStock.map((a, i) => (
-                                <CommandItem
-                                  key={a.id}
-                                  value={`${a.nombre} ${a.codigo || ""}`}
-                                  onSelect={() => { setArticuloId(a.id); setPopoverArticulo(false) }}
-                                  className={i % 2 !== 0 ? "bg-muted/15" : ""}
-                                >
-                                  <Check className={cn("mr-2 h-4 w-4", articuloId === a.id ? "opacity-100" : "opacity-0")} />
-                                  <div className="flex flex-1 justify-between items-center">
-                                    <span>{a.nombre}</span>
-                                    <span className="text-sm text-muted-foreground ml-2">
-                                      {formatearMoneda(a.precioVenta)} · Stock: {a.cantidad}
-                                    </span>
-                                  </div>
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="w-20">
-                    <Input type="number" min={1} placeholder="1" value={cantidadVenta} onChange={(e) => setCantidadVenta(e.target.value)} />
-                  </div>
-                </div>
-              )}
-            </div>
-
             <div className="space-y-3" ref={clienteRef}>
               <Label>Cliente</Label>
               <Input
@@ -282,6 +312,127 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
                 </div>
               )}
             </div>
+
+            <div className="space-y-3">
+              <Label>Agregar artículo</Label>
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  {articulosEnStock.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2">No hay artículos en stock.</p>
+                  ) : (
+                    <Popover open={popoverArticulo} onOpenChange={setPopoverArticulo}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" role="combobox" className="w-full justify-between h-[50px]">
+                          {articuloSeleccionado
+                            ? `${articuloSeleccionado.nombre} — ${formatearMoneda(articuloSeleccionado.precioVenta)}`
+                            : "Seleccionar artículo..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="p-0"
+                        align="start"
+                        side="bottom"
+                        style={{ width: 'calc(var(--radix-popover-trigger-width) * 2)' }}
+                      >
+                        <Command>
+                          <CommandInput placeholder="Buscar artículo..." />
+                          <CommandList className="max-h-56 md:max-h-72">
+                            <CommandEmpty>Sin resultados</CommandEmpty>
+                            <CommandGroup>
+                              {articulosEnStock.map((a, i) => {
+                                const disponible = stockDisponible(a)
+                                return (
+                                  <CommandItem
+                                    key={a.id}
+                                    value={`${a.nombre} ${a.codigo || ""}`}
+                                    disabled={disponible === 0}
+                                    onSelect={() => { setArticuloId(a.id); setPopoverArticulo(false) }}
+                                    className={cn(i % 2 !== 0 ? "bg-muted/15" : "", disponible === 0 && "opacity-50")}
+                                  >
+                                    <Check className={cn("mr-2 h-4 w-4", articuloId === a.id ? "opacity-100" : "opacity-0")} />
+                                    <div className="flex flex-1 justify-between items-center">
+                                      <span>{a.nombre}</span>
+                                      <span className="text-sm text-muted-foreground ml-2">
+                                        {formatearMoneda(a.precioVenta)} · Stock: {disponible}
+                                      </span>
+                                    </div>
+                                  </CommandItem>
+                                )
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
+                <div className="w-20">
+                  <Input type="number" min={1} placeholder="Cant." value={cantidadVenta} onChange={(e) => setCantidadVenta(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="flex items-end gap-2">
+                <div className="w-32">
+                  <Select value={tipoDescuento} onValueChange={(v) => setTipoDescuento(v as "porcentaje" | "monto")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="porcentaje">Descuento %</SelectItem>
+                      <SelectItem value="monto">Descuento $</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <Input
+                    type="number"
+                    min={0}
+                    step={tipoDescuento === "porcentaje" ? 1 : 0.01}
+                    placeholder={tipoDescuento === "porcentaje" ? "Ej: 10" : "Ej: 5.00"}
+                    value={descuentoValor}
+                    onChange={(e) => setDescuentoValor(e.target.value)}
+                  />
+                </div>
+                <Button type="button" onClick={handleAgregarArticulo} disabled={!articuloId || !articulosEnStock.length} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Agregar
+                </Button>
+              </div>
+            </div>
+
+            {carrito.length > 0 && (
+              <div className="rounded-lg border bg-muted/50 divide-y divide-border/60">
+                {carrito.map((linea) => (
+                  <div key={linea.articuloId} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{linea.articuloNombre}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {linea.cantidad} × {formatearMoneda(linea.precioVenta)}
+                        {(linea.descuento || linea.descuentoMonto) && (
+                          <span className="text-primary">
+                            {linea.descuento ? ` (${linea.descuento}%)` : ` (−${formatearMoneda(linea.descuentoMonto || 0)})`}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="font-semibold">
+                        {formatearMoneda(obtenerPrecioConDescuento(linea) * linea.cantidad)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleQuitarArticulo(linea.articuloId!)}
+                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        title="Quitar artículo"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="flex items-center justify-between py-2">
               <div className="flex items-center gap-2">
@@ -352,8 +503,14 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
               </p>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatearMoneda((Number(cantidadVenta) || 1) * (articuloSeleccionado?.precioVenta || 0))}</span>
+                <span>{formatearMoneda(subtotalCarrito)}</span>
               </div>
+              {totalDescuentos > 0 && (
+                <div className="flex justify-between text-primary">
+                  <span>Descuentos</span>
+                  <span>−{formatearMoneda(totalDescuentos)}</span>
+                </div>
+              )}
               {deliveryIncluido && Number(costoDelivery) > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery</span>
@@ -364,7 +521,7 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
                 <span>Total</span>
                 <span>
                   {formatearMoneda(
-                    (Number(cantidadVenta) || 1) * (articuloSeleccionado?.precioVenta || 0) +
+                    subtotalCarrito +
                     (deliveryIncluido ? Number(costoDelivery) : 0)
                   )}
                 </span>
@@ -428,7 +585,7 @@ export default function RegistrarVentaDialog({ articulosEnStock, open: openProp,
 
         <DialogFooter>
           <Button variant="outline" onClick={handleCancelar}>Cancelar</Button>
-          <Button onClick={handleRegistrar} disabled={!articuloId || !clienteNombre.trim() || !metodoPago || enviando}>
+          <Button onClick={handleRegistrar} disabled={carrito.length === 0 || !clienteNombre.trim() || (!fiado && !metodoPago) || enviando}>
             {enviando ? "Registrando..." : "Registrar venta"}
           </Button>
         </DialogFooter>

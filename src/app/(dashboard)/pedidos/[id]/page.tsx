@@ -4,7 +4,7 @@ import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { doc, onSnapshot, collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { pedidosService, productosService, ventasService, inventarioService } from "@/lib/firebaseServices"
+import { pedidosService, productosService, ventasService, inventarioService, clientesService } from "@/lib/firebaseServices"
 import {
   formatearMoneda,
   formatearFecha,
@@ -349,6 +349,7 @@ export default function DetallePedidoPage({
       await pedidosService.actualizar(pedido.id, {
         fechaEntregadoCliente: Timestamp.fromDate(new Date(nvoFecha + "T12:00:00")),
       })
+      const porCliente = new Map<string, { clienteNombre: string; clienteRef?: string; articulos: { articuloNombre: string; cantidad: number; precioVenta: number }[] }>()
       for (const prod of pendientes) {
         if (prod.tipoProducto === "inventario" || (!prod.tipoProducto && !prod.clienteNombre)) {
           await inventarioService.crear({
@@ -359,21 +360,35 @@ export default function DetallePedidoPage({
             estado: "en_stock",
           })
         } else {
-          const ventaData: Record<string, unknown> = {
+          const clave = prod.clienteRef || prod.clienteNombre || ""
+          if (!porCliente.has(clave)) {
+            porCliente.set(clave, { clienteNombre: prod.clienteNombre || "", clienteRef: prod.clienteRef, articulos: [] })
+          }
+          porCliente.get(clave)!.articulos.push({
             articuloNombre: prod.nombre,
             cantidad: prod.cantidad,
             precioVenta: prod.precioVenta || prod.precioUnitario * prod.cantidad,
-            clienteNombre: prod.clienteNombre || "",
-            estatusEntrega: "por_entregar",
-            estatusPago: "por_pagar",
-          }
-          if (prod.clienteRef) ventaData.clienteId = prod.clienteRef
-          await ventasService.crear(ventaData as Parameters<typeof ventasService.crear>[0])
+          })
         }
 
         if (prod.id) {
           await productosService.actualizar(pedido.id, prod.id, { retirado: true })
         }
+      }
+
+      for (const grupo of porCliente.values()) {
+        const ventaData: Record<string, unknown> = {
+          articulos: grupo.articulos,
+          clienteNombre: grupo.clienteNombre,
+          estatusEntrega: "por_entregar",
+          estatusPago: "por_pagar",
+        }
+        if (grupo.clienteRef) {
+          ventaData.clienteId = grupo.clienteRef
+          const cliente = await clientesService.obtener(grupo.clienteRef)
+          if (cliente?.whatsapp) ventaData.clienteWhatsapp = cliente.whatsapp
+        }
+        await ventasService.crear(ventaData as Parameters<typeof ventasService.crear>[0])
       }
 
       await pedidosService.avanzarEstado(pedido.id, "entregado_cliente")
