@@ -12,7 +12,7 @@
  */
 
 export const CARPETA_DRIVE = "Muv-Backups"
-export const MAX_BACKUPS = 7
+export const MAX_BACKUPS = 14
 export const PREFIJO_ARCHIVO = "muv-firestore"
 
 const CLIENT_ID_COMPARTIDO_RCLONE = "202264815644.apps.googleusercontent.com"
